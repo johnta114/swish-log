@@ -17,7 +17,7 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 pt-safe">
       <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
         {/* ロゴ / タイトル */}
         <button

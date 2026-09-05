@@ -4,6 +4,7 @@ import type { ActionType, ShotLocation, Quarter } from '../../types';
 
 import { calculateGameStats, getNextQuarter, formatEventText } from '../../utils/stats';
 import { isThreePointer, getZoneLabel } from '../../utils/court';
+import { triggerHaptic } from '../../utils/haptics';
 import { CourtCanvas } from '../common/CourtCanvas';
 import {
   RotateCcw,
@@ -162,6 +163,12 @@ export const LiveGameScreen: React.FC = () => {
     );
 
     if (ev) {
+      if (isMade) {
+        triggerHaptic.score();
+      } else {
+        triggerHaptic.miss();
+      }
+
       const p = players.find((pl) => pl.id === selectedPlayerId);
       const isScore = points > 0;
       const typeLabel = is3P ? '3PT' : '2PT';
@@ -193,9 +200,17 @@ export const LiveGameScreen: React.FC = () => {
     );
 
     if (ev) {
+      const isFoul = type.startsWith('FOUL');
+      if (isFoul) {
+        triggerHaptic.foul();
+      } else if (points > 0) {
+        triggerHaptic.score();
+      } else {
+        triggerHaptic.miss();
+      }
+
       const p = players.find((pl) => pl.id === selectedPlayerId);
       const isScore = points > 0;
-      const isFoul = type.startsWith('FOUL');
       const text = `${ev.quarter} #${p?.number} ${p?.name}: ${label}`;
 
       setLastFeedback({ text, isScore, isFoul });
@@ -209,6 +224,7 @@ export const LiveGameScreen: React.FC = () => {
   const handleUndo = () => {
     const undone = undoLastStatEvent(game.id);
     if (undone) {
+      triggerHaptic.undo();
       const p = players.find((pl) => pl.id === undone.playerId);
       const t = teams.find((tm) => tm.id === undone.teamId);
       const text = `取消: ${formatEventText(undone, p, t)}`;
@@ -269,7 +285,7 @@ export const LiveGameScreen: React.FC = () => {
       {/* ========================================================
           1. ウルトラスリム・ヘッダー & スコアボード (高さ固定・約88px)
          ======================================================== */}
-      <div className="shrink-0 bg-slate-900 border-b border-slate-800 shadow-sm z-20">
+      <div className="shrink-0 bg-slate-900 border-b border-slate-800 shadow-sm z-20 pt-safe">
         {/* 最上部ナビバー (約32px) */}
         <div className="px-2.5 py-1 flex items-center justify-between border-b border-slate-800/60">
           <button
@@ -520,7 +536,7 @@ export const LiveGameScreen: React.FC = () => {
       {/* ========================================================
           4. 親指アクションボタンプラットフォーム (高さ約96px・最下部に固定)
          ======================================================== */}
-      <div className="shrink-0 px-2.5 pt-1.5 pb-1 space-y-1.5 bg-slate-900/95 border-t border-slate-800 z-20">
+      <div className="shrink-0 px-2.5 pt-1.5 pb-1 space-y-1.5 bg-slate-900/95 border-t border-slate-800 z-20 pb-safe">
         {/* メイン: シュート 成功 / 失敗 ボタン (高さ46px) */}
         <div className="grid grid-cols-2 gap-2">
           {/* 成功ボタン */}

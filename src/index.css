@@ -25,3 +25,42 @@
   scrollbar-width: none;
 }
 
+/* iOS Safe Area / Dynamic Island サポート */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mt-safe {
+  margin-top: env(safe-area-inset-top, 0px);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* iOS Safari 日付入力（input[type="date"]）の上下センタリングと最適化 */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  line-height: 1.25rem;
+  min-height: 1.25rem;
+  margin: 0;
+  padding: 0;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  opacity: 0.8;
+  cursor: pointer;
+  padding: 2px;
+}
+
+
+

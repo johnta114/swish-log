@@ -182,20 +182,29 @@ export const NewGameScreen: React.FC = () => {
           </h3>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1.5">
-              <Calendar className="w-3.5 h-3.5 text-orange-400" />
-              <span>開催日</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                <Calendar className="w-3.5 h-3.5 text-orange-400" />
+                <span>開催日</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setDate(new Date().toISOString().split('T')[0])}
+                className="text-[11px] text-orange-400 hover:text-orange-300 font-bold px-2 py-0.5 rounded-md bg-orange-500/15 border border-orange-500/30 active:scale-95 transition"
+              >
+                今日
+              </button>
+            </div>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+              className="w-full h-11 bg-slate-900 border border-slate-700 rounded-xl px-3.5 text-sm text-white focus:outline-none focus:border-orange-500 font-medium"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1.5">
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1.5">
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
               <span>大会名 / マッチ名（任意）</span>
             </label>
@@ -204,7 +213,7 @@ export const NewGameScreen: React.FC = () => {
               value={tournamentName}
               onChange={(e) => setTournamentName(e.target.value)}
               placeholder="例: ウィンターカップ予選 準決勝"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+              className="w-full h-11 bg-slate-900 border border-slate-700 rounded-xl px-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
             />
           </div>
 

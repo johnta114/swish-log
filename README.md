@@ -105,6 +105,37 @@ npm run preview
 
 ---
 
+## 📱 iOS / Android アプリ（Capacitor）としての起動・開発
+
+本アプリは **Capacitor** を完全セットアップ済みのため、Macからワンコマンドで iOS（Xcode）および Android（Android Studio）のプロジェクトを起動できます。
+
+### 1. Webの最新コードをネイティブアプリに同期
+```bash
+npm run cap:sync
+```
+
+### 2. iOS アプリ（Xcode）で開く
+```bash
+npm run cap:open:ios
+```
+- Xcode が自動で立ち上がります。
+- 上部の再生ボタン（▶）を押すだけで、iPhone シミュレーターや Mac に接続した実機 iPhone で即座にアプリが起動します。
+- **ネイティブ触覚フィードバック（Haptics）対応**: シュート成功時やUndo時に実機がブルッと振動する専用演出が組み込まれています。
+
+### 3. Android アプリ（Android Studio）で開く
+```bash
+npm run cap:open:android
+```
+- Android Studio が自動で立ち上がり、Android エミュレータや実機で即座にビルド・デバッグが可能です。
+
+### 4. アプリアイコン・起動画面の再生成（画像差し替え時など）
+```bash
+npx capacitor-assets generate --ios --android
+```
+- `assets/` 配下の画像から、全解像度用のアプリアイコンとスプラッシュ画面が一括自動生成されます。
+
+---
+
 ## 📂 ディレクトリ構成
 
 ```text

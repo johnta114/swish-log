@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">swish log</string>
+    <string name="title_activity_main">swish log</string>
+    <string name="package_name">com.swishlog.app</string>
+    <string name="custom_url_scheme">com.swishlog.app</string>
+</resources>
