@@ -1,4 +1,8 @@
-# 🏀 バスケットボール スタッツ管理 Webアプリ
+# 🏀 swish log（スウィッシュ ログ）
+
+<p align="center">
+  <img src="public/swish-icon-192.png" width="120" alt="swish log logo" style="border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+</p>
 
 スマートフォンからの観戦・ベンチでの利用に特化した、バスケットボールのリアルタイムスタッツ記録＆分析Webアプリケーションです。  
 試合の素早い展開を逃さず、親指ひとつで直感的に両チームのスタッツ（シュート位置・得点・ファール等）を記録し、試合毎・選手毎に集計・可視化できます。

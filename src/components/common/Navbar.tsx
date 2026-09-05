@@ -22,34 +22,36 @@ export const Navbar: React.FC = () => {
         {/* ロゴ / タイトル */}
         <button
           onClick={() => navigateTo('home')}
-          className="flex items-center space-x-2 text-left focus:outline-none"
+          className="flex items-center space-x-2 text-left focus:outline-none group min-w-0"
         >
-          <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center font-black text-white text-lg shadow-sm">
-            🏀
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-white tracking-tight leading-none">
-              CourtStats
+          <img
+            src="/swish-icon-192.png"
+            alt="swish log icon"
+            className="w-8 h-8 rounded-lg shadow-sm object-cover border border-slate-700/60 group-hover:scale-105 transition-transform shrink-0"
+          />
+          <div className="min-w-0">
+            <h1 className="text-sm font-black text-white tracking-wider leading-none uppercase">
+              swish <span className="text-sky-400">log</span>
             </h1>
-            <p className="text-[10px] text-slate-400 font-medium">バスケ スタッツ管理</p>
+            <p className="text-[10px] text-slate-400 font-medium tracking-tight">バスケ スタッツ管理</p>
           </div>
         </button>
 
         {/* 右側アクション */}
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-1.5 shrink-0">
           <button
             onClick={() => navigateTo('new_game')}
-            className="flex items-center space-x-1 text-xs bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-medium px-2.5 py-1.5 rounded-lg transition shadow-sm"
+            className="flex items-center space-x-1 text-xs bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-semibold px-2.5 py-1.5 rounded-lg transition shadow-sm"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-3.5 h-3.5" />
             <span>新規試合</span>
           </button>
           <button
             onClick={handleReset}
             title="サンプルデータ再読み込み"
-            className="p-1.5 text-slate-400 hover:text-slate-200 active:rotate-180 transition duration-300"
+            className="p-1 text-slate-400 hover:text-slate-200 active:rotate-180 transition duration-300"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

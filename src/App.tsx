@@ -13,8 +13,8 @@ const MainContent: React.FC = () => {
 
   return (
     <div className={`min-h-screen ${currentScreen === 'live_game' ? 'h-[100dvh] overflow-hidden' : ''} bg-slate-950 flex flex-col justify-start items-center text-slate-100 selection:bg-orange-500 selection:text-white`}>
-      {/* スマホ用コンテナ（最大幅 max-w-md でスマホの操作感を完全再現） */}
-      <div className={`w-full max-w-md ${currentScreen === 'live_game' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-slate-900 shadow-2xl flex flex-col relative border-x border-slate-800/80`}>
+      {/* スマホ用コンテナ（最大幅 448px、画面幅がそれ以下の場合は 100% 幅） */}
+      <div className={`w-full max-w-md min-w-0 ${currentScreen === 'live_game' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'} bg-slate-900 shadow-2xl flex flex-col relative border-x border-slate-800/80`}>
         <Navbar />
 
         <main className={`flex-1 ${currentScreen === 'live_game' ? 'p-0 overflow-hidden flex flex-col' : 'px-4 pt-4'}`}>
