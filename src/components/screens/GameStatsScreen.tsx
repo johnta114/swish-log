@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { calculateGameStats, formatPct, generateStatsCSV } from '../../utils/stats';
+import { calculateGameStats, formatPct } from '../../utils/stats';
+import { exportGameBoxScoreCSV, exportGamePlayLogCSV } from '../../utils/csvExport';
+import { exportSingleGameFile } from '../../utils/gameShare';
 import { getShotZone } from '../../utils/court';
 import { CourtCanvas } from '../common/CourtCanvas';
 import type { Quarter } from '../../types';
@@ -8,13 +10,14 @@ import {
   ArrowLeft,
   Play,
   Share2,
-  Download,
   Calendar,
   Trophy,
   Check,
   BarChart3,
   Crosshair,
   Clock,
+  FileSpreadsheet,
+  UploadCloud,
 } from 'lucide-react';
 
 export const GameStatsScreen: React.FC = () => {
@@ -36,8 +39,6 @@ export const GameStatsScreen: React.FC = () => {
   const [filterPlayerId, setFilterPlayerId] = useState<string | null>(null);
   // シュートチャート用クォーターフィルター ('all' | Quarter)
   const [chartQuarterFilter, setChartQuarterFilter] = useState<Quarter | 'all'>('all');
-
-  const [copied, setCopied] = useState(false);
 
   if (!game) {
     return (
@@ -166,24 +167,42 @@ export const GameStatsScreen: React.FC = () => {
     });
   }, [game.events, homeTeam.id, awayTeam.id]);
 
-  // CSVダウンロード
-  const handleDownloadCSV = () => {
-    const csvContent = generateStatsCSV(game, homeTeam, awayTeam, players);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `stats_${homeTeam.shortName}_vs_${awayTeam.shortName}_${game.date}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const [exportNotice, setExportNotice] = useState<string>('');
+
+  // 試合データ共有（.json）
+  const handleShareGame = async () => {
+    if (!game || !homeTeam || !awayTeam) return;
+    try {
+      await exportSingleGameFile(game, homeTeam, awayTeam, players);
+      setExportNotice('試合データ（.json）を出力しました');
+      setTimeout(() => setExportNotice(''), 3500);
+    } catch (e: any) {
+      console.error(e);
+    }
   };
 
-  // CSVコピー
-  const handleCopyCSV = () => {
-    const csvContent = generateStatsCSV(game, homeTeam, awayTeam, players);
-    navigator.clipboard.writeText(csvContent);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // ボックススコアCSV出力
+  const handleExportBoxScoreCSV = async () => {
+    if (!game || !homeTeam || !awayTeam) return;
+    try {
+      await exportGameBoxScoreCSV(game, homeTeam, awayTeam, players);
+      setExportNotice('ボックススコアCSVを出力しました');
+      setTimeout(() => setExportNotice(''), 3500);
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  // プレイログCSV（シュート座標付き）出力
+  const handleExportPlayLogCSV = async () => {
+    if (!game || !homeTeam || !awayTeam) return;
+    try {
+      await exportGamePlayLogCSV(game, homeTeam, awayTeam, players);
+      setExportNotice('プレイログCSVを出力しました');
+      setTimeout(() => setExportNotice(''), 3500);
+    } catch (e: any) {
+      console.error(e);
+    }
   };
 
   return (
@@ -238,62 +257,90 @@ export const GameStatsScreen: React.FC = () => {
         </div>
 
         {/* スコア表示 */}
-        <div className="grid grid-cols-5 items-center py-2 bg-slate-900/80 rounded-xl px-3 border border-slate-800">
-          <div className="col-span-2 flex flex-col items-center text-center">
-            <div
-              className="w-3 h-1 rounded-full mb-1"
-              style={{ backgroundColor: homeTeam.color }}
-            />
-            <span className="font-bold text-sm text-white truncate max-w-full">
-              {homeTeam.name}
-            </span>
-            <span className="text-3xl font-black text-white font-mono mt-0.5">
+        <div className="grid grid-cols-5 items-center gap-2 py-2">
+          {/* ホーム */}
+          <div className="col-span-2 text-center space-y-1">
+            <div className="flex items-center justify-center space-x-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: homeTeam.color }}
+              />
+              <span className="font-bold text-sm text-white truncate max-w-[110px]">
+                {homeTeam.name}
+              </span>
+            </div>
+            <div className="text-3xl font-black font-mono text-white tracking-tight">
               {stats.homeStats.score}
-            </span>
+            </div>
           </div>
 
-          <div className="col-span-1 text-center">
-            <span className="text-xs font-bold text-slate-500">FINAL</span>
+          {/* VS */}
+          <div className="col-span-1 text-center font-bold text-xs text-slate-500">
+            VS
           </div>
 
-          <div className="col-span-2 flex flex-col items-center text-center">
-            <div
-              className="w-3 h-1 rounded-full mb-1"
-              style={{ backgroundColor: awayTeam.color }}
-            />
-            <span className="font-bold text-sm text-white truncate max-w-full">
-              {awayTeam.name}
-            </span>
-            <span className="text-3xl font-black text-white font-mono mt-0.5">
+          {/* アウェイ */}
+          <div className="col-span-2 text-center space-y-1">
+            <div className="flex items-center justify-center space-x-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: awayTeam.color }}
+              />
+              <span className="font-bold text-sm text-white truncate max-w-[110px]">
+                {awayTeam.name}
+              </span>
+            </div>
+            <div className="text-3xl font-black font-mono text-white tracking-tight">
               {stats.awayStats.score}
-            </span>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* シェア・エクスポートボタン */}
-        <div className="flex items-center justify-end space-x-2 pt-1">
+      {/* データ共有・エクスポートエリア */}
+      <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+            <Share2 className="w-3.5 h-3.5 text-orange-400" />
+            <span>データ共有・出力</span>
+          </span>
+          {exportNotice && (
+            <span className="text-[11px] text-emerald-400 font-bold flex items-center space-x-1 animate-pulse">
+              <Check className="w-3 h-3" />
+              <span>{exportNotice}</span>
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* 試合データ共有（.json） */}
           <button
-            onClick={handleCopyCSV}
-            className="flex items-center space-x-1 text-xs bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-semibold px-2.5 py-1.5 rounded-lg transition active:scale-95"
+            onClick={handleShareGame}
+            className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 active:scale-95 text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow transition"
+            title="AirDropやLINE等で他の端末のswish logアプリに共有"
           >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">コピー完了</span>
-              </>
-            ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5" />
-                <span>CSVコピー</span>
-              </>
-            )}
+            <UploadCloud className="w-4 h-4 shrink-0" />
+            <span>この試合を共有 (.json)</span>
           </button>
+
+          {/* ボックススコアCSV */}
           <button
-            onClick={handleDownloadCSV}
-            className="flex items-center space-x-1 text-xs bg-slate-700/80 hover:bg-slate-700 text-slate-200 font-semibold px-2.5 py-1.5 rounded-lg transition active:scale-95"
+            onClick={handleExportBoxScoreCSV}
+            className="py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 hover:bg-slate-800 active:scale-95 text-slate-200 font-bold text-xs flex items-center justify-center space-x-1.5 transition"
+            title="Excel/Numbersで開ける選手別スタッツCSV"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>CSVダウンロード</span>
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>ボックススコア CSV</span>
+          </button>
+
+          {/* プレイログCSV */}
+          <button
+            onClick={handleExportPlayLogCSV}
+            className="py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 hover:bg-slate-800 active:scale-95 text-slate-200 font-bold text-xs flex items-center justify-center space-x-1.5 transition"
+            title="シュート位置X/Y座標付きの全イベント履歴CSV"
+          >
+            <Clock className="w-4 h-4 text-sky-400 shrink-0" />
+            <span>プレイログ CSV</span>
           </button>
         </div>
       </div>

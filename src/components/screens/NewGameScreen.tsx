@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Play, ArrowLeft, Calendar, Trophy, CheckSquare, Square, AlertCircle } from 'lucide-react';
+import { Play, ArrowLeft, Calendar, Trophy, CheckSquare, Square, AlertCircle, Star } from 'lucide-react';
 
 export const NewGameScreen: React.FC = () => {
-  const { teams, players, createGame, navigateTo } = useApp();
+  const { teams, players, myTeamId, createGame, navigateTo } = useApp();
 
   const [date, setDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
@@ -17,15 +17,25 @@ export const NewGameScreen: React.FC = () => {
   const [awayRoster, setAwayRoster] = useState<string[]>([]);
   const [error, setError] = useState<string>('');
 
-  // 初期チーム設定
+  // 初期チーム設定（マイチーム優先）
   useEffect(() => {
     if (teams.length >= 2) {
-      if (!homeTeamId) setHomeTeamId(teams[0].id);
-      if (!awayTeamId) setAwayTeamId(teams[1].id);
+      if (!homeTeamId) {
+        if (myTeamId && teams.some((t) => t.id === myTeamId)) {
+          setHomeTeamId(myTeamId);
+          const otherTeam = teams.find((t) => t.id !== myTeamId);
+          if (otherTeam && !awayTeamId) {
+            setAwayTeamId(otherTeam.id);
+          }
+        } else {
+          setHomeTeamId(teams[0].id);
+          if (!awayTeamId) setAwayTeamId(teams[1].id);
+        }
+      }
     } else if (teams.length === 1) {
       if (!homeTeamId) setHomeTeamId(teams[0].id);
     }
-  }, [teams]);
+  }, [teams, myTeamId]);
 
   // ホームチームの選手が変更されたら全選手をデフォルト選択
   useEffect(() => {
@@ -248,9 +258,17 @@ export const NewGameScreen: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           {/* ホームチーム */}
           <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-3.5 space-y-2">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-300">
-              <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-              <span>ホームチーム</span>
+            <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span>ホームチーム</span>
+              </div>
+              {homeTeamId === myTeamId && (
+                <span className="text-[10px] text-amber-400 flex items-center space-x-0.5 font-bold">
+                  <Star className="w-2.5 h-2.5 fill-amber-400" />
+                  <span>自チーム</span>
+                </span>
+              )}
             </div>
             <select
               value={homeTeamId}
@@ -259,7 +277,7 @@ export const NewGameScreen: React.FC = () => {
             >
               {teams.map((t) => (
                 <option key={t.id} value={t.id} disabled={t.id === awayTeamId}>
-                  {t.name}
+                  {t.id === myTeamId ? `★ ${t.name} (マイチーム)` : t.name}
                 </option>
               ))}
             </select>
@@ -273,9 +291,17 @@ export const NewGameScreen: React.FC = () => {
 
           {/* アウェイチーム */}
           <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-3.5 space-y-2">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-300">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-              <span>アウェイチーム</span>
+            <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span>アウェイチーム</span>
+              </div>
+              {awayTeamId === myTeamId && (
+                <span className="text-[10px] text-amber-400 flex items-center space-x-0.5 font-bold">
+                  <Star className="w-2.5 h-2.5 fill-amber-400" />
+                  <span>自チーム</span>
+                </span>
+              )}
             </div>
             <select
               value={awayTeamId}
@@ -284,7 +310,7 @@ export const NewGameScreen: React.FC = () => {
             >
               {teams.map((t) => (
                 <option key={t.id} value={t.id} disabled={t.id === homeTeamId}>
-                  {t.name}
+                  {t.id === myTeamId ? `★ ${t.name} (マイチーム)` : t.name}
                 </option>
               ))}
             </select>

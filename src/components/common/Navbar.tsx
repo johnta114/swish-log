@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Home, Users, UserCheck, PlusCircle, RotateCcw } from 'lucide-react';
+import { Home, Users, UserCheck, PlusCircle, RotateCcw, BarChart2 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { currentScreen, navigateTo, resetData } = useApp();
@@ -56,40 +56,51 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* サブナビゲーションバー（ホーム、チーム、選手） */}
-      <nav className="max-w-md mx-auto px-2 flex border-t border-slate-800/80 bg-slate-900/60">
+      {/* サブナビゲーションバー（試合、通算スタッツ、チーム、選手） */}
+      <nav className="max-w-md mx-auto px-1 flex border-t border-slate-800/80 bg-slate-900/60">
         <button
           onClick={() => navigateTo('home')}
-          className={`flex-1 py-2 flex items-center justify-center space-x-1.5 text-xs font-semibold border-b-2 transition ${
+          className={`flex-1 py-2 flex items-center justify-center space-x-1 text-[11px] font-semibold border-b-2 transition ${
             currentScreen === 'home'
               ? 'border-orange-500 text-orange-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Home className="w-3.5 h-3.5" />
+          <Home className="w-3.5 h-3.5 shrink-0" />
           <span>試合一覧</span>
         </button>
         <button
+          onClick={() => navigateTo('total_stats')}
+          className={`flex-1 py-2 flex items-center justify-center space-x-1 text-[11px] font-semibold border-b-2 transition ${
+            currentScreen === 'total_stats'
+              ? 'border-orange-500 text-orange-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <BarChart2 className="w-3.5 h-3.5 shrink-0" />
+          <span>通算スタッツ</span>
+        </button>
+        <button
           onClick={() => navigateTo('teams')}
-          className={`flex-1 py-2 flex items-center justify-center space-x-1.5 text-xs font-semibold border-b-2 transition ${
+          className={`flex-1 py-2 flex items-center justify-center space-x-1 text-[11px] font-semibold border-b-2 transition ${
             currentScreen === 'teams'
               ? 'border-orange-500 text-orange-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Users className="w-3.5 h-3.5" />
-          <span>チーム管理</span>
+          <Users className="w-3.5 h-3.5 shrink-0" />
+          <span>チーム</span>
         </button>
         <button
           onClick={() => navigateTo('players')}
-          className={`flex-1 py-2 flex items-center justify-center space-x-1.5 text-xs font-semibold border-b-2 transition ${
+          className={`flex-1 py-2 flex items-center justify-center space-x-1 text-[11px] font-semibold border-b-2 transition ${
             currentScreen === 'players'
               ? 'border-orange-500 text-orange-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <UserCheck className="w-3.5 h-3.5" />
-          <span>選手管理</span>
+          <UserCheck className="w-3.5 h-3.5 shrink-0" />
+          <span>選手</span>
         </button>
       </nav>
     </header>

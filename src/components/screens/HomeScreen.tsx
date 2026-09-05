@@ -1,15 +1,100 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { calculateGameStats } from '../../utils/stats';
-import { PlusCircle, Play, BarChart2, Calendar, Trophy, Trash2, Shield, Users } from 'lucide-react';
+import { ImportGameModal } from '../common/ImportGameModal';
+import {
+  PlusCircle,
+  Play,
+  BarChart2,
+  Calendar,
+  Trophy,
+  Trash2,
+  Shield,
+  Users,
+  Search,
+  X,
+  Star,
+  RotateCcw,
+  UploadCloud,
+} from 'lucide-react';
 
 export const HomeScreen: React.FC = () => {
-  const { games, teams, players, navigateTo, deleteGame } = useApp();
+  const { games, teams, players, myTeamId, myTeam, screenParams, navigateTo, deleteGame } = useApp();
+
+  // 試合データ取り込みモーダル
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(() => {
+    return screenParams.importModal === 'true';
+  });
+
+  // 検索・絞り込みステート
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [filterMode, setFilterMode] = useState<'all' | 'my_team'>('all');
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all');
 
   const getTeam = (teamId: string) => teams.find((t) => t.id === teamId);
 
   const activeGames = games.filter((g) => g.status === 'in_progress');
   const finishedGames = games.filter((g) => g.status === 'finished');
+
+  // フィルター済み試合履歴
+  const filteredFinishedGames = useMemo(() => {
+    return finishedGames.filter((game) => {
+      const homeTeam = getTeam(game.homeTeamId);
+      const awayTeam = getTeam(game.awayTeamId);
+      if (!homeTeam || !awayTeam) return false;
+
+      // 1. カレンダー日付フィルター
+      if (selectedDate && game.date !== selectedDate) {
+        return false;
+      }
+
+      // 2. マイチームフィルター
+      if (filterMode === 'my_team') {
+        if (!myTeamId) return false;
+        if (game.homeTeamId !== myTeamId && game.awayTeamId !== myTeamId) {
+          return false;
+        }
+      }
+
+      // 3. チーム個別セレクトフィルター
+      if (selectedTeamFilter !== 'all') {
+        if (game.homeTeamId !== selectedTeamFilter && game.awayTeamId !== selectedTeamFilter) {
+          return false;
+        }
+      }
+
+      // 4. フリーワード検索（チーム名・大会名）
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchHome =
+          homeTeam.name.toLowerCase().includes(q) ||
+          homeTeam.shortName.toLowerCase().includes(q);
+        const matchAway =
+          awayTeam.name.toLowerCase().includes(q) ||
+          awayTeam.shortName.toLowerCase().includes(q);
+        const matchTournament = game.tournamentName?.toLowerCase().includes(q);
+        if (!matchHome && !matchAway && !matchTournament) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [finishedGames, selectedDate, filterMode, selectedTeamFilter, searchQuery, myTeamId, teams]);
+
+  const hasFilterActive =
+    searchQuery.trim() !== '' ||
+    selectedDate !== '' ||
+    filterMode !== 'all' ||
+    selectedTeamFilter !== 'all';
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedDate('');
+    setFilterMode('all');
+    setSelectedTeamFilter('all');
+  };
 
   const handleDeleteGame = (e: React.MouseEvent, gameId: string) => {
     e.stopPropagation();
@@ -163,21 +248,157 @@ export const HomeScreen: React.FC = () => {
         </section>
       )}
 
-      {/* 終了した試合セクション */}
+      {/* 終了した試合（試合履歴）セクション */}
       <section className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-slate-400 tracking-wide uppercase">
-            試合履歴 ({finishedGames.length})
-          </h3>
+          <div className="flex items-center space-x-2">
+            <h3 className="text-sm font-bold text-slate-400 tracking-wide uppercase">
+              試合履歴 ({filteredFinishedGames.length}/{finishedGames.length})
+            </h3>
+            {hasFilterActive && (
+              <span className="text-[10px] bg-orange-600/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.2 rounded-full font-bold">
+                絞り込み中
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {hasFilterActive && (
+              <button
+                onClick={handleResetFilters}
+                className="text-[11px] text-slate-400 hover:text-white flex items-center space-x-1 active:scale-95 transition"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>クリア</span>
+              </button>
+            )}
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700/80 px-2.5 py-1 rounded-xl font-bold flex items-center space-x-1.5 transition active:scale-95 shadow-sm"
+              title="AirDropやLINE等で受け取った試合データ（.json）を取り込む"
+            >
+              <UploadCloud className="w-3.5 h-3.5 shrink-0" />
+              <span>データ取り込み</span>
+            </button>
+          </div>
         </div>
 
-        {finishedGames.length === 0 ? (
-          <div className="bg-slate-800/40 border border-dashed border-slate-700/80 rounded-2xl p-6 text-center text-slate-400 text-xs">
-            まだ終了した試合はありません。
+        {/* 検索・カレンダーフィルターバー */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 space-y-2">
+          {/* 上段: フリーワード検索 & カレンダー日付入力 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* チーム名・大会名検索 */}
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-500 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="チーム名や大会名で検索..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 text-slate-500 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* カレンダー日付ピッカー */}
+            <div className="relative flex items-center">
+              <Calendar className="w-3.5 h-3.5 absolute left-2.5 text-slate-500 pointer-events-none" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+              />
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate('')}
+                  className="absolute right-2 text-slate-500 hover:text-white"
+                  title="日付解除"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 下段: クイックフィルタータブ（すべて / マイチーム / チーム絞り込み） */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-0.5">
+            <button
+              onClick={() => {
+                setFilterMode('all');
+                setSelectedTeamFilter('all');
+              }}
+              className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                filterMode === 'all' && selectedTeamFilter === 'all'
+                  ? 'bg-orange-600 text-white shadow'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              すべて
+            </button>
+
+            {myTeam && (
+              <button
+                onClick={() => {
+                  setFilterMode('my_team');
+                  setSelectedTeamFilter('all');
+                }}
+                className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 ${
+                  filterMode === 'my_team'
+                    ? 'bg-amber-600 text-white shadow'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Star className="w-3 h-3 fill-current text-amber-300" />
+                <span>マイチーム ({myTeam.shortName || myTeam.name})</span>
+              </button>
+            )}
+
+            {/* チーム個別ドロップダウン */}
+            <select
+              value={selectedTeamFilter}
+              onChange={(e) => {
+                setSelectedTeamFilter(e.target.value);
+                if (e.target.value !== 'all') setFilterMode('all');
+              }}
+              className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-orange-500 shrink-0"
+            >
+              <option value="all">チームを選択...</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} {t.id === myTeamId ? '★' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 試合一覧リスト */}
+        {filteredFinishedGames.length === 0 ? (
+          <div className="bg-slate-800/40 border border-dashed border-slate-700/80 rounded-2xl p-6 text-center text-slate-400 text-xs space-y-2">
+            <p>
+              {hasFilterActive
+                ? '条件に一致する試合が見つかりませんでした。'
+                : 'まだ終了した試合はありません。'}
+            </p>
+            {hasFilterActive && (
+              <button
+                onClick={handleResetFilters}
+                className="text-orange-400 underline text-xs font-semibold"
+              >
+                絞り込み条件をリセット
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
-            {finishedGames.map((game) => {
+            {filteredFinishedGames.map((game) => {
               const homeTeam = getTeam(game.homeTeamId);
               const awayTeam = getTeam(game.awayTeamId);
               if (!homeTeam || !awayTeam) return null;
@@ -186,6 +407,13 @@ export const HomeScreen: React.FC = () => {
               const isHomeWin = stats.homeStats.score > stats.awayStats.score;
               const isTie = stats.homeStats.score === stats.awayStats.score;
 
+              // マイチーム勝敗判定
+              const isHomeMyTeam = game.homeTeamId === myTeamId;
+              const isAwayMyTeam = game.awayTeamId === myTeamId;
+              const hasMyTeam = isHomeMyTeam || isAwayMyTeam;
+              const myTeamWon = hasMyTeam && ((isHomeMyTeam && isHomeWin) || (isAwayMyTeam && !isHomeWin && !isTie));
+              const myTeamLost = hasMyTeam && ((isHomeMyTeam && !isHomeWin && !isTie) || (isAwayMyTeam && isHomeWin));
+
               return (
                 <div
                   key={game.id}
@@ -193,37 +421,59 @@ export const HomeScreen: React.FC = () => {
                   className="bg-slate-800/70 border border-slate-700/60 hover:border-slate-500 rounded-2xl p-4 shadow cursor-pointer transition space-y-2.5"
                 >
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{game.date}</span>
+                    <div className="flex items-center space-x-2 truncate min-w-0">
+                      <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="font-mono">{game.date}</span>
                       {game.tournamentName && (
                         <span className="text-slate-400 truncate max-w-[140px]">
                           • {game.tournamentName}
                         </span>
                       )}
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium text-[10px]">
-                      試合終了
-                    </span>
+
+                    {/* 勝敗バッジ（マイチーム参加時）または試合終了バッジ */}
+                    {hasMyTeam ? (
+                      myTeamWon ? (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-black text-[10px] flex items-center space-x-0.5">
+                          <Trophy className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>WIN</span>
+                        </span>
+                      ) : myTeamLost ? (
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 font-black text-[10px]">
+                          LOSE
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-bold text-[10px]">
+                          DRAW
+                        </span>
+                      )
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium text-[10px]">
+                        試合終了
+                      </span>
+                    )}
                   </div>
 
                   {/* スコアサマリー */}
                   <div className="flex items-center justify-between px-2">
                     <div className="flex items-center space-x-2">
                       <div
-                        className="w-2.5 h-2.5 rounded-full"
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: homeTeam.color }}
                       />
                       <span
-                        className={`text-sm ${
+                        className={`text-sm flex items-center space-x-1 ${
                           isHomeWin ? 'font-bold text-white' : 'text-slate-300'
                         }`}
                       >
-                        {homeTeam.name}
+                        <span>{homeTeam.name}</span>
+                        {isHomeMyTeam && (
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                        )}
                       </span>
                     </div>
                     <span
-                      className={`text-base font-black ${
+                      className={`text-base font-black font-mono ${
                         isHomeWin ? 'text-white' : 'text-slate-400'
                       }`}
                     >
@@ -234,19 +484,22 @@ export const HomeScreen: React.FC = () => {
                   <div className="flex items-center justify-between px-2">
                     <div className="flex items-center space-x-2">
                       <div
-                        className="w-2.5 h-2.5 rounded-full"
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: awayTeam.color }}
                       />
                       <span
-                        className={`text-sm ${
+                        className={`text-sm flex items-center space-x-1 ${
                           !isHomeWin && !isTie ? 'font-bold text-white' : 'text-slate-300'
                         }`}
                       >
-                        {awayTeam.name}
+                        <span>{awayTeam.name}</span>
+                        {isAwayMyTeam && (
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                        )}
                       </span>
                     </div>
                     <span
-                      className={`text-base font-black ${
+                      className={`text-base font-black font-mono ${
                         !isHomeWin && !isTie ? 'text-white' : 'text-slate-400'
                       }`}
                     >
@@ -275,34 +528,47 @@ export const HomeScreen: React.FC = () => {
         )}
       </section>
 
-      {/* チーム・選手クイックアクセス */}
-      <div className="grid grid-cols-2 gap-3 pt-2">
+      {/* チーム・選手・通算スタッツ クイックアクセス (3分割) */}
+      <div className="grid grid-cols-3 gap-2 pt-2">
+        <button
+          onClick={() => navigateTo('total_stats')}
+          className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3 text-center transition flex flex-col items-center justify-center space-y-1 active:scale-95"
+        >
+          <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center">
+            <BarChart2 className="w-4 h-4" />
+          </div>
+          <div className="text-xs font-bold text-white">通算スタッツ</div>
+          <div className="text-[9px] text-slate-400">全試合の選手成績</div>
+        </button>
+
         <button
           onClick={() => navigateTo('teams')}
-          className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 text-left transition flex items-center space-x-3"
+          className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3 text-center transition flex flex-col items-center justify-center space-y-1 active:scale-95"
         >
-          <div className="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-            <Shield className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <Shield className="w-4 h-4" />
           </div>
-          <div>
-            <div className="text-xs font-bold text-white">チーム管理</div>
-            <div className="text-[10px] text-slate-400">{teams.length} チーム登録済</div>
-          </div>
+          <div className="text-xs font-bold text-white">チーム管理</div>
+          <div className="text-[9px] text-slate-400">{teams.length} チーム</div>
         </button>
 
         <button
           onClick={() => navigateTo('players')}
-          className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 text-left transition flex items-center space-x-3"
+          className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3 text-center transition flex flex-col items-center justify-center space-y-1 active:scale-95"
         >
-          <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <Users className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <Users className="w-4 h-4" />
           </div>
-          <div>
-            <div className="text-xs font-bold text-white">選手管理</div>
-            <div className="text-[10px] text-slate-400">{players.length} 名登録済</div>
-          </div>
+          <div className="text-xs font-bold text-white">選手管理</div>
+          <div className="text-[9px] text-slate-400">{players.length} 名登録</div>
         </button>
       </div>
+
+      {/* 試合データ取り込みモーダル */}
+      <ImportGameModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+      />
     </div>
   );
 };

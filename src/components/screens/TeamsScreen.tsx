@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { Team } from '../../types';
-import { Shield, Plus, Edit2, Trash2, ArrowLeft, Check } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, ArrowLeft, Check, Star, BarChart2 } from 'lucide-react';
 
 const COLOR_PRESETS = [
   '#ef4444', // 赤
@@ -19,12 +19,13 @@ const COLOR_PRESETS = [
 ];
 
 export const TeamsScreen: React.FC = () => {
-  const { teams, players, addTeam, updateTeam, deleteTeam, navigateTo } = useApp();
+  const { teams, players, myTeamId, setMyTeamId, addTeam, updateTeam, deleteTeam, navigateTo } = useApp();
 
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [color, setColor] = useState('#ef4444');
+  const [isMyTeamInput, setIsMyTeamInput] = useState(false);
   const [error, setError] = useState('');
 
   const handleStartEdit = (team: Team) => {
@@ -32,6 +33,7 @@ export const TeamsScreen: React.FC = () => {
     setName(team.name);
     setShortName(team.shortName);
     setColor(team.color);
+    setIsMyTeamInput(team.id === myTeamId);
     setError('');
   };
 
@@ -40,6 +42,7 @@ export const TeamsScreen: React.FC = () => {
     setName('');
     setShortName('');
     setColor('#ef4444');
+    setIsMyTeamInput(false);
     setError('');
   };
 
@@ -50,6 +53,8 @@ export const TeamsScreen: React.FC = () => {
       return;
     }
 
+    let targetTeamId = editingTeamId;
+
     if (editingTeamId) {
       const existing = teams.find((t) => t.id === editingTeamId);
       if (existing) {
@@ -58,14 +63,23 @@ export const TeamsScreen: React.FC = () => {
           name: name.trim(),
           shortName: shortName.trim() || name.trim().slice(0, 4).toUpperCase(),
           color,
+          isMyTeam: isMyTeamInput,
         });
       }
     } else {
-      addTeam({
+      const newT = addTeam({
         name: name.trim(),
         shortName: shortName.trim() || name.trim().slice(0, 4).toUpperCase(),
         color,
+        isMyTeam: isMyTeamInput,
       });
+      targetTeamId = newT.id;
+    }
+
+    if (isMyTeamInput && targetTeamId) {
+      setMyTeamId(targetTeamId);
+    } else if (!isMyTeamInput && targetTeamId === myTeamId) {
+      setMyTeamId(null);
     }
 
     handleCancelEdit();
@@ -170,6 +184,25 @@ export const TeamsScreen: React.FC = () => {
             </div>
           </div>
 
+          {/* マイチーム設定チェックボックス */}
+          <div className="pt-1">
+            <label className="flex items-center space-x-2.5 cursor-pointer bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/60 hover:border-amber-500/50 transition">
+              <input
+                type="checkbox"
+                checked={isMyTeamInput}
+                onChange={(e) => setIsMyTeamInput(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-800 border-slate-600"
+              />
+              <div className="flex items-center space-x-1.5 text-xs text-slate-200">
+                <Star className={`w-3.5 h-3.5 ${isMyTeamInput ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
+                <span className="font-medium">このチームをマイチーム（自チーム）に設定する</span>
+              </div>
+            </label>
+            <p className="text-[10px] text-slate-400 mt-1 px-1">
+              ※マイチームに設定すると、試合一覧での勝敗判定や新規試合作成時の優先選択、通算スタッツ集計の対象になります。
+            </p>
+          </div>
+
           <div className="flex items-center space-x-2 pt-2">
             <button
               type="submit"
@@ -214,15 +247,20 @@ export const TeamsScreen: React.FC = () => {
           <div className="space-y-2">
             {teams.map((team) => {
               const teamPlayers = players.filter((p) => p.teamId === team.id);
+              const isCurrentMyTeam = team.id === myTeamId;
 
               return (
                 <div
                   key={team.id}
-                  className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex items-center justify-between shadow-sm"
+                  className={`bg-slate-800/80 border rounded-xl p-3 flex items-center justify-between shadow-sm transition ${
+                    isCurrentMyTeam
+                      ? 'border-amber-500/60 bg-gradient-to-r from-amber-500/10 to-transparent'
+                      : 'border-slate-700'
+                  }`}
                 >
                   <div className="flex items-center space-x-3">
                     <div
-                      className="w-4 h-9 rounded-md shadow-sm"
+                      className="w-4 h-10 rounded-md shadow-sm"
                       style={{ backgroundColor: team.color }}
                     />
                     <div>
@@ -231,14 +269,38 @@ export const TeamsScreen: React.FC = () => {
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-mono">
                           {team.shortName}
                         </span>
+                        {isCurrentMyTeam && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 flex items-center space-x-0.5">
+                            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                            <span>マイチーム</span>
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        選手: {teamPlayers.length} 名
+                      <div className="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-3">
+                        <span>選手: {teamPlayers.length} 名</span>
+                        <button
+                          onClick={() => navigateTo('total_stats')}
+                          className="text-amber-400 hover:text-amber-300 flex items-center space-x-0.5 hover:underline"
+                        >
+                          <BarChart2 className="w-3 h-3" />
+                          <span>通算スタッツ</span>
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => setMyTeamId(isCurrentMyTeam ? null : team.id)}
+                      className={`p-2 rounded-lg transition ${
+                        isCurrentMyTeam
+                          ? 'text-amber-400 bg-amber-500/20 hover:bg-amber-500/30'
+                          : 'text-slate-400 hover:text-amber-300 hover:bg-slate-700/60'
+                      }`}
+                      title={isCurrentMyTeam ? 'マイチーム設定を解除' : 'マイチームに設定'}
+                    >
+                      <Star className={`w-4 h-4 ${isCurrentMyTeam ? 'fill-amber-400' : ''}`} />
+                    </button>
                     <button
                       onClick={() => handleStartEdit(team)}
                       className="p-2 text-slate-400 hover:text-white rounded-lg transition"

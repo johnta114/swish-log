@@ -7,6 +7,7 @@ import { PlayersScreen } from './components/screens/PlayersScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
 import { LiveGameScreen } from './components/screens/LiveGameScreen';
 import { GameStatsScreen } from './components/screens/GameStatsScreen';
+import { TotalStatsScreen } from './components/screens/TotalStatsScreen';
 
 const MainContent: React.FC = () => {
   const { currentScreen } = useApp();
@@ -19,6 +20,7 @@ const MainContent: React.FC = () => {
 
         <main className={`flex-1 ${currentScreen === 'live_game' ? 'p-0 overflow-hidden flex flex-col' : 'px-4 pt-4'}`}>
           {currentScreen === 'home' && <HomeScreen />}
+          {currentScreen === 'total_stats' && <TotalStatsScreen />}
           {currentScreen === 'teams' && <TeamsScreen />}
           {currentScreen === 'players' && <PlayersScreen />}
           {currentScreen === 'new_game' && <NewGameScreen />}

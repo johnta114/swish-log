@@ -1,21 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { Player } from '../../types';
-import { Users, Plus, Edit2, Trash2, ArrowLeft, Check } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, ArrowLeft, Check, History, BarChart2, Star } from 'lucide-react';
 
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
+const GRADE_PRESETS = ['1年', '2年', '3年', '4年', '一般'];
 
 export const PlayersScreen: React.FC = () => {
-  const { teams, players, addPlayer, updatePlayer, deletePlayer, navigateTo } = useApp();
+  const { teams, players, myTeamId, addPlayer, updatePlayer, deletePlayer, navigateTo } = useApp();
 
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() => {
-    return teams.length > 0 ? teams[0].id : '';
+    return myTeamId && teams.some((t) => t.id === myTeamId)
+      ? myTeamId
+      : teams.length > 0
+      ? teams[0].id
+      : '';
   });
 
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [number, setNumber] = useState<string>('');
   const [name, setName] = useState<string>('');
   const [position, setPosition] = useState<string>('PG');
+  const [grade, setGrade] = useState<string>('');
   const [error, setError] = useState<string>('');
 
   const currentTeam = teams.find((t) => t.id === selectedTeamId);
@@ -31,6 +37,7 @@ export const PlayersScreen: React.FC = () => {
     setNumber(p.number.toString());
     setName(p.name);
     setPosition(p.position || 'PG');
+    setGrade(p.grade || '');
     setError('');
   };
 
@@ -39,6 +46,7 @@ export const PlayersScreen: React.FC = () => {
     setNumber('');
     setName('');
     setPosition('PG');
+    setGrade('');
     setError('');
   };
 
@@ -75,6 +83,7 @@ export const PlayersScreen: React.FC = () => {
           number: numVal,
           name: name.trim(),
           position,
+          grade: grade.trim() || undefined,
         });
       }
     } else {
@@ -83,6 +92,7 @@ export const PlayersScreen: React.FC = () => {
         number: numVal,
         name: name.trim(),
         position,
+        grade: grade.trim() || undefined,
       });
     }
 
@@ -111,12 +121,21 @@ export const PlayersScreen: React.FC = () => {
           </button>
           <h2 className="text-lg font-bold text-white">選手登録・管理</h2>
         </div>
-        <button
-          onClick={() => navigateTo('teams')}
-          className="text-xs text-orange-400 hover:underline"
-        >
-          チーム追加
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => navigateTo('total_stats')}
+            className="text-xs bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 px-2.5 py-1 rounded-lg border border-amber-500/40 flex items-center space-x-1 transition"
+          >
+            <BarChart2 className="w-3.5 h-3.5" />
+            <span>通算スタッツ</span>
+          </button>
+          <button
+            onClick={() => navigateTo('teams')}
+            className="text-xs text-orange-400 hover:underline"
+          >
+            チーム追加
+          </button>
+        </div>
       </div>
 
       {/* チーム選択タブ・セレクター */}
@@ -139,26 +158,32 @@ export const PlayersScreen: React.FC = () => {
               対象チームを選択
             </label>
             <div className="flex overflow-x-auto no-scrollbar gap-2 pb-1">
-              {teams.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setSelectedTeamId(t.id);
-                    handleCancelEdit();
-                  }}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
-                    selectedTeamId === t.id
-                      ? 'bg-slate-800 border-orange-500 text-white shadow-md'
-                      : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: t.color }}
-                  />
-                  <span>{t.name}</span>
-                </button>
-              ))}
+              {teams.map((t) => {
+                const isTMyTeam = t.id === myTeamId;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setSelectedTeamId(t.id);
+                      handleCancelEdit();
+                    }}
+                    className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
+                      selectedTeamId === t.id
+                        ? 'bg-slate-800 border-orange-500 text-white shadow-md'
+                        : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: t.color }}
+                    />
+                    <span>{t.name}</span>
+                    {isTMyTeam && (
+                      <Star className="w-3 h-3 text-amber-400 fill-amber-400 ml-0.5" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -214,28 +239,61 @@ export const PlayersScreen: React.FC = () => {
                 </div>
               </div>
 
-              {/* ポジション選択 */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  ポジション（任意）
-                </label>
-                <div className="flex gap-1.5">
-                  {POSITIONS.map((pos) => (
-                    <button
-                      type="button"
-                      key={pos}
-                      onClick={() => setPosition(pos)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
-                        position === pos
-                          ? 'bg-orange-600 text-white shadow-sm'
-                          : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {pos}
-                    </button>
-                  ))}
+              {/* ポジション & 学年選択 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* ポジション選択 */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    ポジション（任意）
+                  </label>
+                  <div className="flex gap-1.5">
+                    {POSITIONS.map((pos) => (
+                      <button
+                        type="button"
+                        key={pos}
+                        onClick={() => setPosition(position === pos ? '' : pos)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
+                          position === pos
+                            ? 'bg-orange-600 text-white shadow-sm'
+                            : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {pos}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 学年・所属カテゴリ */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    学年 / 年代（任意）
+                  </label>
+                  <div className="flex gap-1">
+                    {GRADE_PRESETS.map((g) => (
+                      <button
+                        type="button"
+                        key={g}
+                        onClick={() => setGrade(grade === g ? '' : g)}
+                        className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition ${
+                          grade === g
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {editingPlayerId && (
+                <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-700/60 text-[11px] text-slate-400 flex items-center space-x-1.5">
+                  <History className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span>背番号や名前を変更しても、過去の試合記録（ボックススコア・シュート記録）は当時の情報が保持され、通算スタッツは自動合算されます。</span>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2 pt-2">
                 <button
@@ -289,11 +347,11 @@ export const PlayersScreen: React.FC = () => {
                   >
                     <div className="flex items-center space-x-3">
                       {/* 背番号バッジ */}
-                      <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700 font-mono font-black text-orange-400 text-base flex items-center justify-center shadow-inner">
+                      <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 font-mono font-black text-orange-400 text-base flex items-center justify-center shadow-inner flex-shrink-0">
                         #{player.number}
                       </div>
                       <div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                           <span className="font-bold text-sm text-white">
                             {player.name}
                           </span>
@@ -302,11 +360,44 @@ export const PlayersScreen: React.FC = () => {
                               {player.position}
                             </span>
                           )}
+                          {player.grade && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40">
+                              {player.grade}
+                            </span>
+                          )}
                         </div>
+
+                        {/* 旧背番号履歴表示 */}
+                        {player.numberHistory && player.numberHistory.length > 0 && (
+                          <div className="flex items-center space-x-1.5 mt-1 text-[10px] text-slate-400">
+                            <span className="text-slate-500 flex items-center space-x-0.5">
+                              <History className="w-3 h-3" />
+                              <span>旧番号:</span>
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {player.numberHistory.map((h, i) => (
+                                <span
+                                  key={i}
+                                  className="px-1.5 py-0.2 rounded bg-slate-900/80 border border-slate-700 text-slate-400 font-mono"
+                                  title={`変更日: ${new Date(h.changedAt).toLocaleDateString()}`}
+                                >
+                                  #{h.number}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => navigateTo('total_stats', { teamId: selectedTeamId, playerId: player.id })}
+                        className="p-2 text-slate-400 hover:text-amber-400 hover:bg-slate-700/50 rounded-lg transition"
+                        title="通算スタッツを見る"
+                      >
+                        <BarChart2 className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleStartEdit(player)}
                         className="p-2 text-slate-400 hover:text-white rounded-lg transition"

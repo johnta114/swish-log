@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
-import type { Team, Player, Game, StatEvent, Quarter, ActionType, ShotLocation } from '../types';
+import type { Team, Player, Game, StatEvent, Quarter, ActionType, ShotLocation, SingleGameSharePackage } from '../types';
 import { storage } from '../utils/storage';
+import { executeGameImport } from '../utils/gameShare';
 
 export type ScreenType =
   | 'home'
+  | 'total_stats'
   | 'teams'
   | 'players'
   | 'new_game'
@@ -20,8 +22,11 @@ interface AppContextType {
   teams: Team[];
   players: Player[];
   games: Game[];
+  myTeamId: string | null;
+  myTeam: Team | undefined;
 
   // チーム操作
+  setMyTeamId: (teamId: string | null) => void;
   addTeam: (team: Omit<Team, 'id' | 'createdAt'>) => Team;
   updateTeam: (team: Team) => void;
   deleteTeam: (teamId: string) => void;
@@ -63,6 +68,9 @@ interface AppContextType {
   deleteStatEvent: (gameId: string, eventId: string) => void;
 
 
+  // データ共有・インポート
+  importGame: (pkg: SingleGameSharePackage, mode?: 'add_new' | 'overwrite') => string;
+
   // ヘルパー
   getTeamById: (teamId: string) => Team | undefined;
   getPlayerById: (playerId: string) => Player | undefined;
@@ -78,7 +86,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       const scr = sp.get('screen') as ScreenType;
-      if (scr && ['home', 'teams', 'players', 'new_game', 'live_game', 'stats_view'].includes(scr)) {
+      if (scr && ['home', 'total_stats', 'teams', 'players', 'new_game', 'live_game', 'stats_view'].includes(scr)) {
         return scr;
       }
     }
@@ -100,6 +108,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [teams, setTeams] = useState<Team[]>(() => storage.getTeams());
   const [players, setPlayers] = useState<Player[]>(() => storage.getPlayers());
   const [games, setGames] = useState<Game[]>(() => storage.getGames());
+  const [myTeamId, setMyTeamIdState] = useState<string | null>(() => storage.getMyTeamId());
+
+  const setMyTeamId = (teamId: string | null) => {
+    setMyTeamIdState(teamId);
+    storage.saveMyTeamId(teamId);
+    setTeams((prev) =>
+      prev.map((t) => ({
+        ...t,
+        isMyTeam: t.id === teamId,
+      }))
+    );
+  };
+
+  const myTeam = useMemo(() => teams.find((t) => t.id === myTeamId), [teams, myTeamId]);
 
 
   // ストレージ同期
@@ -150,6 +172,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteTeam = (teamId: string) => {
     setTeams((prev) => prev.filter((t) => t.id !== teamId));
     setPlayers((prev) => prev.filter((p) => p.teamId !== teamId));
+    if (myTeamId === teamId) {
+      setMyTeamId(null);
+    }
   };
 
   // 選手操作
@@ -164,7 +189,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updatePlayer = (updated: Player) => {
-    setPlayers((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setPlayers((prev) =>
+      prev.map((p) => {
+        if (p.id !== updated.id) return p;
+        let newHistory = p.numberHistory ? [...p.numberHistory] : [];
+        // 背番号が変更された場合、過去履歴に自動記録
+        if (p.number !== updated.number) {
+          newHistory.push({
+            number: p.number,
+            changedAt: Date.now(),
+            note: `背番号変更（#${p.number} → #${updated.number}）`,
+          });
+        }
+        return {
+          ...updated,
+          numberHistory: newHistory,
+        };
+      })
+    );
   };
 
   const deletePlayer = (playerId: string) => {
@@ -193,6 +235,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? data.awayOnCourtPlayerIds
         : data.awayRosterPlayerIds.slice(0, 5);
 
+    // ロスター選手の当時の背番号・名前スナップショットを生成（過去の記録保持）
+    const rosterSnapshots: Record<string, { number: number; name: string }> = {};
+    const allRosterIds = [...data.homeRosterPlayerIds, ...data.awayRosterPlayerIds];
+    allRosterIds.forEach((pid) => {
+      const pl = players.find((p) => p.id === pid);
+      if (pl) {
+        rosterSnapshots[pid] = { number: pl.number, name: pl.name };
+      }
+    });
+
     const newGame: Game = {
       id: `game_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       date: data.date,
@@ -203,6 +255,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       awayRosterPlayerIds: data.awayRosterPlayerIds,
       homeOnCourtPlayerIds: defaultHomeOnCourt,
       awayOnCourtPlayerIds: defaultAwayOnCourt,
+      rosterSnapshots,
       currentQuarter: '1Q',
       status: 'in_progress',
       isU12: data.isU12 ?? false,
@@ -288,6 +341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       prev.map((g) => {
         if (g.id !== gameId) return g;
 
+        const targetPlayer = players.find((p) => p.id === playerId);
         const newEvent: StatEvent = {
           id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           gameId,
@@ -295,6 +349,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           quarter: g.currentQuarter,
           teamId,
           playerId,
+          playerNumber: targetPlayer?.number,
+          playerName: targetPlayer?.name,
           type,
           points,
           location,
@@ -358,7 +414,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setTeams(storage.getTeams());
     setPlayers(storage.getPlayers());
     setGames(storage.getGames());
+    setMyTeamIdState(storage.getMyTeamId());
     navigateTo('home');
+  };
+
+  const importGame = (pkg: SingleGameSharePackage, mode: 'add_new' | 'overwrite' = 'add_new'): string => {
+    const result = executeGameImport(pkg, games, teams, players, mode);
+    setGames(result.updatedGames);
+    setTeams(result.updatedTeams);
+    setPlayers(result.updatedPlayers);
+    storage.saveGames(result.updatedGames);
+    storage.saveTeams(result.updatedTeams);
+    storage.savePlayers(result.updatedPlayers);
+    return result.importedGameId;
   };
 
   const contextValue = useMemo(
@@ -369,6 +437,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       teams,
       players,
       games,
+      myTeamId,
+      myTeam,
+      setMyTeamId,
       addTeam,
       updateTeam,
       deleteTeam,
@@ -390,10 +461,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getGameById,
       getPlayersByTeam,
       resetData,
+      importGame,
     }),
-    [currentScreen, screenParams, teams, players, games]
+    [currentScreen, screenParams, teams, players, games, myTeamId, myTeam]
   );
-
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 };

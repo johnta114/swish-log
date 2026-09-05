@@ -101,6 +101,13 @@ export interface Team {
   shortName: string;
   color: string;
   createdAt: number;
+  isMyTeam?: boolean;
+}
+
+export interface PlayerNumberHistory {
+  number: number;
+  changedAt: number;
+  note?: string;
 }
 
 export interface Player {
@@ -109,6 +116,8 @@ export interface Player {
   number: number;
   name: string;
   position?: string;
+  grade?: string;
+  numberHistory?: PlayerNumberHistory[];
   createdAt: number;
 }
 
@@ -126,6 +135,8 @@ export interface StatEvent {
   quarter: Quarter;
   teamId: string;
   playerId: string;
+  playerNumber?: number; // イベント記録当時の背番号
+  playerName?: string; // イベント記録当時の選手名
   type: ActionType;
   points: number;
   location?: ShotLocation;
@@ -141,6 +152,7 @@ export interface Game {
   awayRosterPlayerIds: string[];
   homeOnCourtPlayerIds?: string[];
   awayOnCourtPlayerIds?: string[];
+  rosterSnapshots?: Record<string, { number: number; name: string }>; // 試合当時の選手背番号・名前
   currentQuarter: Quarter;
   status: GameStatus;
   isU12?: boolean; // U12モード（ミニバス・3P不適用）
@@ -208,3 +220,91 @@ export interface TeamStatsSummary {
     foulTotal: number;
   };
 }
+
+// 選手通算（全試合）スタッツ
+export interface PlayerGameLog {
+  gameId: string;
+  date: string;
+  tournamentName?: string;
+  opponentTeamName: string;
+  opponentTeamColor: string;
+  playerNumberInGame: number;
+  playerNameInGame: string;
+  points: number;
+  fg2m: number;
+  fg2a: number;
+  fg3m: number;
+  fg3a: number;
+  ftm: number;
+  fta: number;
+  foulTotal: number;
+}
+
+export interface PlayerCareerStats {
+  playerId: string;
+  currentNumber: number;
+  name: string;
+  teamId: string;
+  position?: string;
+  grade?: string;
+  numberHistory?: PlayerNumberHistory[];
+  gamesPlayed: number;
+  points: number;
+  pointsPerGame: number;
+  fg2m: number;
+  fg2a: number;
+  fg2pct: number;
+  fg3m: number;
+  fg3a: number;
+  fg3pct: number;
+  ftm: number;
+  fta: number;
+  ftpct: number;
+  foulTotal: number;
+  foulPerGame: number;
+  shotEvents: StatEvent[]; // 全試合のシュートイベント（通算シュートチャート用）
+  gameLogs: PlayerGameLog[]; // 試合別ログ履歴
+}
+
+export interface TeamCareerStats {
+  team: Team;
+  totalGames: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  winRate: number;
+  totalPoints: number;
+  pointsPerGame: number;
+  totalPointsAllowed: number;
+  pointsAllowedPerGame: number;
+  playerStats: PlayerCareerStats[];
+}
+
+// 試合単位の共有データパッケージ
+export interface SingleGameSharePackage {
+  version: '1.0';
+  exportedAt: number;
+  appName: 'swish-log';
+  game: Game;
+  teams: Team[]; // その試合のホーム・アウェイチーム情報
+  players: Player[]; // その試合のベンチ入り・出場選手情報
+}
+
+// インポート前のプレビュー情報
+export interface GameImportPreview {
+  isValid: boolean;
+  errorMessage?: string;
+  packageData?: SingleGameSharePackage;
+  gameTitle: string; // 例: "レッド・ファルコンズ vs ブルー・サンダース"
+  gameDate: string;
+  tournamentName?: string;
+  score: {
+    home: number;
+    away: number;
+  };
+  totalEventsCount: number;
+  totalShotsCount: number;
+  isDuplicate: boolean; // 既存試合とIDが一致するか
+  duplicateGameName?: string;
+}
+
