@@ -139,6 +139,8 @@ export interface Game {
   awayTeamId: string;
   homeRosterPlayerIds: string[];
   awayRosterPlayerIds: string[];
+  homeOnCourtPlayerIds?: string[];
+  awayOnCourtPlayerIds?: string[];
   currentQuarter: Quarter;
   status: GameStatus;
   isU12?: boolean; // U12モード（ミニバス・3P不適用）

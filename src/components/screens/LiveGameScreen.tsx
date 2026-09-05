@@ -17,6 +17,9 @@ import {
   ListOrdered,
   X,
   Trash2,
+  ArrowLeftRight,
+  Users,
+  Check,
 } from 'lucide-react';
 
 export const LiveGameScreen: React.FC = () => {
@@ -31,6 +34,8 @@ export const LiveGameScreen: React.FC = () => {
     changeQuarter,
     finishGame,
     navigateTo,
+    setCourtPlayers,
+    substitutePlayer,
   } = useApp();
 
   const gameId = screenParams.gameId as string;
@@ -46,6 +51,23 @@ export const LiveGameScreen: React.FC = () => {
   const [isLogModalOpen, setIsLogModalOpen] = useState<boolean>(false);
   // ログモーダル内での選択クォーターフィルター ('all' | Quarter)
   const [logQuarterFilter, setLogQuarterFilter] = useState<Quarter | 'all'>('all');
+
+  // 選手交代モーダルの表示状態（URLクエリ ?subModal=open にも対応）
+  const [isSubModalOpen, setIsSubModalOpen] = useState<boolean>(
+    () => new URLSearchParams(window.location.search).get('subModal') === 'open'
+  );
+  // 交代モーダル内の選択状態（OUT選手、IN選手）
+  const [subOutPlayerId, setSubOutPlayerId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('subOut')
+  );
+  const [subInPlayerId, setSubInPlayerId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('subIn')
+  );
+  // 一括交代（5人チェック選択）モード
+  const [subBatchMode, setSubBatchMode] = useState<boolean>(
+    () => new URLSearchParams(window.location.search).get('batch') === 'true'
+  );
+  const [batchSelectedIds, setBatchSelectedIds] = useState<string[]>([]);
 
   // 直近アクションのトーストフィードバック
   const [lastFeedback, setLastFeedback] = useState<{
@@ -97,7 +119,7 @@ export const LiveGameScreen: React.FC = () => {
   const currentTeamStats = isHome ? stats.homeStats : stats.awayStats;
   const rosterIds = isHome ? game.homeRosterPlayerIds : game.awayRosterPlayerIds;
 
-  // 出場選手オブジェクト一覧
+  // 登録選手オブジェクト一覧
   const rosterPlayers = useMemo(() => {
     return rosterIds
       .map((id) => players.find((p) => p.id === id))
@@ -105,18 +127,93 @@ export const LiveGameScreen: React.FC = () => {
       .sort((a, b) => a.number - b.number);
   }, [rosterIds, players]);
 
-  // 初回またはチーム切替時に、選択中選手が対象チームにいなければデフォルトで先頭選手を選択
+  // 現在コート上の出場選手ID一覧（未設定ならロスター先頭5名）
+  const onCourtIds = useMemo(() => {
+    const raw = isHome ? game.homeOnCourtPlayerIds : game.awayOnCourtPlayerIds;
+    if (raw && raw.length > 0) {
+      return raw.filter((id) => rosterIds.includes(id));
+    }
+    return rosterIds.slice(0, 5);
+  }, [isHome, game.homeOnCourtPlayerIds, game.awayOnCourtPlayerIds, rosterIds]);
+
+  // コート上の出場選手オブジェクト一覧
+  const courtPlayers = useMemo(() => {
+    return onCourtIds
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is NonNullable<typeof p> => p !== undefined)
+      .sort((a, b) => a.number - b.number);
+  }, [onCourtIds, players]);
+
+  // ベンチ選手オブジェクト一覧
+  const benchPlayers = useMemo(() => {
+    const benchIds = rosterIds.filter((id) => !onCourtIds.includes(id));
+    return benchIds
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is NonNullable<typeof p> => p !== undefined)
+      .sort((a, b) => a.number - b.number);
+  }, [rosterIds, onCourtIds, players]);
+
+  // 初回・チーム切替・交代時に、選択中選手がコート上の選手に含まれていなければ先頭選手を選択
   useEffect(() => {
-    if (rosterPlayers.length > 0) {
-      if (!selectedPlayerId || !rosterIds.includes(selectedPlayerId)) {
-        setSelectedPlayerId(rosterPlayers[0].id);
+    if (courtPlayers.length > 0) {
+      if (!selectedPlayerId || !onCourtIds.includes(selectedPlayerId)) {
+        setSelectedPlayerId(courtPlayers[0].id);
       }
+    } else if (rosterPlayers.length > 0) {
+      setSelectedPlayerId(rosterPlayers[0].id);
     } else {
       setSelectedPlayerId(null);
     }
-  }, [activeSide, rosterIds]);
+  }, [activeSide, onCourtIds, courtPlayers, rosterPlayers]);
+
+  useEffect(() => {
+    if (batchSelectedIds.length === 0 && onCourtIds.length > 0) {
+      setBatchSelectedIds(onCourtIds);
+    }
+  }, [onCourtIds, batchSelectedIds.length]);
 
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
+
+  // 1名交代の実行
+  const handleExecuteSub = () => {
+    if (!subOutPlayerId || !subInPlayerId) return;
+    const outPlayer = players.find((p) => p.id === subOutPlayerId);
+    const inPlayer = players.find((p) => p.id === subInPlayerId);
+
+    substitutePlayer(game.id, activeSide, subOutPlayerId, subInPlayerId);
+    setSelectedPlayerId(subInPlayerId);
+    triggerHaptic.miss();
+
+    const text = `交代: OUT #${outPlayer?.number ?? ''} ⇄ IN #${inPlayer?.number ?? ''} ${inPlayer?.name ?? ''}`;
+    setLastFeedback({ text, isScore: false, isFoul: false });
+    setTimeout(() => {
+      setLastFeedback((prev) => (prev?.text === text ? null : prev));
+    }, 2500);
+
+    setIsSubModalOpen(false);
+  };
+
+  // 5名一括交代の実行
+  const handleExecuteBatchSub = () => {
+    if (batchSelectedIds.length === 0) return;
+    if (batchSelectedIds.length > 5) {
+      alert('コート上の選手は最大5名まで選択できます');
+      return;
+    }
+    setCourtPlayers(game.id, activeSide, batchSelectedIds);
+    if (!batchSelectedIds.includes(selectedPlayerId ?? '')) {
+      setSelectedPlayerId(batchSelectedIds[0]);
+    }
+    triggerHaptic.miss();
+
+    const text = `出場メンバー更新 (${batchSelectedIds.length}名)`;
+    setLastFeedback({ text, isScore: false, isFoul: false });
+    setTimeout(() => {
+      setLastFeedback((prev) => (prev?.text === text ? null : prev));
+    }, 2500);
+
+    setIsSubModalOpen(false);
+  };
 
   // 現在選択中位置のゾーン情報
 
@@ -450,24 +547,24 @@ export const LiveGameScreen: React.FC = () => {
       {/* ========================================================
           2. チーム切替 & 選手選択バー (横スクロール対応・約48px)
          ======================================================== */}
-      <div className="shrink-0 px-2 py-1 bg-slate-900/90 border-b border-slate-800 flex items-center space-x-2 z-10">
+      <div className="shrink-0 px-1.5 py-1 bg-slate-900/90 border-b border-slate-800 flex items-center space-x-1 z-10 w-full">
         {/* チーム即時トグルボタン */}
         <button
           onClick={() => setActiveSide(isHome ? 'away' : 'home')}
-          className="shrink-0 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-black flex items-center space-x-1 text-white shadow-sm"
+          className="shrink-0 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-black flex items-center space-x-1 text-white shadow-sm"
           title="タップで相手チームに切り替え"
         >
           <span
-            className="w-2.5 h-2.5 rounded-full"
+            className="w-2 h-2 rounded-full"
             style={{ backgroundColor: currentTeam.color }}
           />
-          <span className="text-[11px] font-bold">{currentTeam.shortName || currentTeam.name}</span>
+          <span className="truncate max-w-[32px]">{currentTeam.shortName || currentTeam.name}</span>
           <span className="text-[9px] text-slate-400">⇄</span>
         </button>
 
-        {/* 選手リスト（横スクロールチップ） */}
-        <div className="flex-1 overflow-x-auto no-scrollbar flex items-center space-x-1.5 py-0.5">
-          {rosterPlayers.map((p) => {
+        {/* 出場中選手リスト（コート上の選手のみ表示・min-w-0で交代ボタンを画面外に押し出さない） */}
+        <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar flex items-center space-x-1 py-0.5">
+          {courtPlayers.map((p) => {
             const isSelected = selectedPlayerId === p.id;
             const box = currentTeamStats.players.find((b) => b.playerId === p.id);
             const fouls = box?.foulTotal ?? 0;
@@ -477,17 +574,17 @@ export const LiveGameScreen: React.FC = () => {
               <button
                 key={p.id}
                 onClick={() => setSelectedPlayerId(p.id)}
-                className={`shrink-0 px-2.5 py-1 rounded-xl text-xs font-bold flex items-center space-x-1 transition border relative ${
+                className={`shrink-0 px-1.5 py-0.5 rounded-lg text-xs font-bold flex items-center space-x-0.5 transition border relative ${
                   isSelected
                     ? 'bg-orange-600 border-orange-400 text-white shadow ring-1 ring-orange-400/50'
                     : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
                 }`}
               >
                 <span className="font-mono font-black">#{p.number}</span>
-                <span className="text-[11px] truncate max-w-[60px]">{p.name.split(' ')[0]}</span>
+                <span className="text-[10px] truncate max-w-[32px]">{p.name.split(' ')[0]}</span>
                 {fouls > 0 && (
                   <span
-                    className={`text-[8px] px-1 rounded-full font-mono font-bold ${
+                    className={`text-[7px] px-0.5 rounded font-mono font-bold ${
                       isTrouble ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'
                     }`}
                   >
@@ -498,6 +595,25 @@ export const LiveGameScreen: React.FC = () => {
             );
           })}
         </div>
+
+        {/* 選手交代ボタン（右端に固定） */}
+        <button
+          onClick={() => {
+            setSubOutPlayerId(null);
+            setSubInPlayerId(null);
+            setBatchSelectedIds(onCourtIds);
+            setSubBatchMode(false);
+            setIsSubModalOpen(true);
+          }}
+          className="shrink-0 px-1.5 py-1 rounded-lg bg-sky-950/80 hover:bg-sky-900 border border-sky-500/50 text-sky-300 text-[10px] font-bold flex items-center space-x-0.5 active:scale-95 transition shadow-sm"
+          title="選手交代"
+        >
+          <ArrowLeftRight className="w-3 h-3 text-sky-400" />
+          <span>交代</span>
+          <span className="text-[8px] bg-sky-500/30 px-1 py-0.2 rounded font-mono text-sky-200">
+            {courtPlayers.length}/{rosterPlayers.length}
+          </span>
+        </button>
       </div>
 
       {/* ========================================================
@@ -755,6 +871,305 @@ export const LiveGameScreen: React.FC = () => {
               >
                 閉じる
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          6. 選手交代モーダル (SubstitutionModal)
+         ======================================================== */}
+      {isSubModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end">
+          <div className="bg-slate-900 border-t border-slate-700 rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+            {/* モーダルヘッダー */}
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: currentTeam.color }}
+                />
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center space-x-1.5">
+                    <ArrowLeftRight className="w-4 h-4 text-sky-400" />
+                    <span>選手交代（{currentTeam.shortName || currentTeam.name}）</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    コート上: {courtPlayers.length}名 / 登録: {rosterPlayers.length}名
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSubModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 border border-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* モード切替タブ */}
+            <div className="px-3 pt-2 pb-1 border-b border-slate-800 bg-slate-950/60 flex space-x-2">
+              <button
+                type="button"
+                onClick={() => setSubBatchMode(false)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1 ${
+                  !subBatchMode
+                    ? 'bg-sky-600 text-white shadow'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+                <span>クイック交代 (1人)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubBatchMode(true);
+                  setBatchSelectedIds(onCourtIds);
+                }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1 ${
+                  subBatchMode
+                    ? 'bg-sky-600 text-white shadow'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>5人一括選択</span>
+              </button>
+            </div>
+
+            {/* モーダルコンテンツ */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 max-h-[60vh]">
+              {!subBatchMode ? (
+                <>
+                  {/* STEP 1: ベンチへ下がる選手（OUT） */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-rose-400 flex items-center space-x-1">
+                        <span className="w-2 h-2 rounded-full bg-rose-500" />
+                        <span>① 下がる選手（OUT）を選択</span>
+                      </span>
+                      {subOutPlayerId && (
+                        <span className="text-[10px] text-rose-300 font-mono">
+                          選択中: #{players.find((p) => p.id === subOutPlayerId)?.number}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {courtPlayers.map((p) => {
+                        const isOut = subOutPlayerId === p.id;
+                        const box = currentTeamStats.players.find((b) => b.playerId === p.id);
+                        const fouls = box?.foulTotal ?? 0;
+                        const pts = box?.points ?? 0;
+
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setSubOutPlayerId(p.id)}
+                            className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition ${
+                              isOut
+                                ? 'bg-rose-500/20 border-rose-500 text-white ring-1 ring-rose-500'
+                                : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono font-black text-xs ${
+                                isOut ? 'bg-rose-600 text-white' : 'bg-slate-700 text-slate-200'
+                              }`}>
+                                #{p.number}
+                              </span>
+                              <div>
+                                <span className="font-bold text-xs">{p.name}</span>
+                                {p.position && (
+                                  <span className="ml-1 text-[10px] text-slate-400">({p.position})</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2 text-[11px] font-mono">
+                              <span className="text-orange-400 font-bold">{pts}点</span>
+                              <span className={fouls >= 4 ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                                {fouls}F
+                              </span>
+                              {isOut && (
+                                <span className="text-[10px] font-black bg-rose-600 text-white px-1.5 py-0.2 rounded font-sans">
+                                  OUT
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* STEP 2: コートに入る選手（IN） */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-emerald-400 flex items-center space-x-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span>② コートに入る選手（IN）を選択</span>
+                      </span>
+                      {subInPlayerId && (
+                        <span className="text-[10px] text-emerald-300 font-mono">
+                          選択中: #{players.find((p) => p.id === subInPlayerId)?.number}
+                        </span>
+                      )}
+                    </div>
+
+                    {benchPlayers.length === 0 ? (
+                      <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-800 text-center text-xs text-slate-500">
+                        ベンチ選手がいません（全員出場中）
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {benchPlayers.map((p) => {
+                          const isIn = subInPlayerId === p.id;
+                          const box = currentTeamStats.players.find((b) => b.playerId === p.id);
+                          const fouls = box?.foulTotal ?? 0;
+                          const pts = box?.points ?? 0;
+
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setSubInPlayerId(p.id)}
+                              className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition ${
+                                isIn
+                                  ? 'bg-emerald-500/20 border-emerald-500 text-white ring-1 ring-emerald-500'
+                                  : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 text-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono font-black text-xs ${
+                                  isIn ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-200'
+                                }`}>
+                                  #{p.number}
+                                </span>
+                                <div>
+                                  <span className="font-bold text-xs">{p.name}</span>
+                                  {p.position && (
+                                    <span className="ml-1 text-[10px] text-slate-400">({p.position})</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2 text-[11px] font-mono">
+                                <span className="text-orange-400 font-bold">{pts}点</span>
+                                <span className={fouls >= 4 ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                                  {fouls}F
+                                </span>
+                                {isIn && (
+                                  <span className="text-[10px] font-black bg-emerald-600 text-white px-1.5 py-0.2 rounded font-sans">
+                                    IN
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* 5名一括選択モード */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-300">
+                      出場選手を選択（最大5名）:
+                    </span>
+                    <span className={`font-mono font-black ${
+                      batchSelectedIds.length === 5
+                        ? 'text-emerald-400'
+                        : batchSelectedIds.length > 5
+                        ? 'text-red-400'
+                        : 'text-amber-400'
+                    }`}>
+                      {batchSelectedIds.length} / 5 名選択中
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {rosterPlayers.map((p) => {
+                      const isChecked = batchSelectedIds.includes(p.id);
+                      const box = currentTeamStats.players.find((b) => b.playerId === p.id);
+                      const fouls = box?.foulTotal ?? 0;
+                      const pts = box?.points ?? 0;
+
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            if (isChecked) {
+                              setBatchSelectedIds((prev) => prev.filter((id) => id !== p.id));
+                            } else {
+                              if (batchSelectedIds.length >= 5) {
+                                alert('コート上の選手は最大5名までです');
+                                return;
+                              }
+                              setBatchSelectedIds((prev) => [...prev, p.id]);
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition ${
+                            isChecked
+                              ? 'bg-sky-600/20 border-sky-500 text-white'
+                              : 'bg-slate-800/80 border-slate-700 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <span className={`w-5 h-5 rounded flex items-center justify-center border text-xs ${
+                              isChecked ? 'bg-sky-600 border-sky-400 text-white' : 'border-slate-600 text-transparent'
+                            }`}>
+                              ✓
+                            </span>
+                            <span className="font-mono font-black text-xs">#{p.number}</span>
+                            <span className="font-bold text-xs">{p.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 text-[11px] font-mono text-slate-400">
+                            <span>{pts}点</span>
+                            <span className={fouls >= 4 ? 'text-red-400 font-bold' : ''}>{fouls}F</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* モーダルフッター確定ボタン */}
+            <div className="p-3 border-t border-slate-800 bg-slate-950 pb-safe">
+              {!subBatchMode ? (
+                <button
+                  type="button"
+                  disabled={!subOutPlayerId || !subInPlayerId}
+                  onClick={handleExecuteSub}
+                  className={`w-full py-3 rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2 ${
+                    subOutPlayerId && subInPlayerId
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white active:scale-95'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  <span>
+                    {subOutPlayerId && subInPlayerId
+                      ? `交代を確定 (OUT #${players.find((p) => p.id === subOutPlayerId)?.number} ⇄ IN #${players.find((p) => p.id === subInPlayerId)?.number})`
+                      : '①下がる選手 と ②入る選手 を選択'}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={batchSelectedIds.length === 0}
+                  onClick={handleExecuteBatchSub}
+                  className="w-full py-3 rounded-xl font-bold text-sm shadow transition bg-sky-600 hover:bg-sky-500 text-white active:scale-95 flex items-center justify-center space-x-2"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>選択した {batchSelectedIds.length} 名を出場メンバーに設定</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

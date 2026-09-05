@@ -89,7 +89,7 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
           height="96"
           fill="#0f172a"
           stroke="#94a3b8"
-          stroke-width="1.5"
+          strokeWidth="1.5"
         />
 
         {/* フリースローサークル */}
@@ -99,21 +99,21 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
           r="36"
           fill="none"
           stroke="#94a3b8"
-          stroke-width="1.5"
-          stroke-dasharray="4 3"
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
         />
         <path
           d="M 114,96 A 36 36 0 0 0 186,96"
           fill="none"
           stroke="#94a3b8"
-          stroke-width="1.5"
+          strokeWidth="1.5"
         />
 
         {/* バックボード & バスケットリング */}
         {/* バックボード */}
-        <line x1="130" y1="20" x2="170" y2="20" stroke="#f8fafc" stroke-width="3" />
+        <line x1="130" y1="20" x2="170" y2="20" stroke="#f8fafc" strokeWidth="3" />
         {/* リング支柱 */}
-        <line x1="150" y1="20" x2="150" y2="27" stroke="#64748b" stroke-width="2" />
+        <line x1="150" y1="20" x2="150" y2="27" stroke="#64748b" strokeWidth="2" />
         {/* リング */}
         <circle
           cx="150"
@@ -121,14 +121,14 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
           r="8"
           fill="none"
           stroke="#f97316"
-          stroke-width="2.5"
+          strokeWidth="2.5"
         />
         {/* ノーチャージセミサークル */}
         <path
           d="M 135,20 A 15 15 0 0 0 165,20"
           fill="none"
           stroke="#64748b"
-          stroke-width="1.5"
+          strokeWidth="1.5"
         />
 
         {/* スリーポイントライン */}
@@ -136,8 +136,8 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
           d="M 30,0 L 30,55 A 125 125 0 0 0 270,55 L 270,0"
           fill="none"
           stroke={isU12 ? '#475569' : '#38bdf8'}
-          stroke-width={isU12 ? '1.5' : '2'}
-          stroke-dasharray={isU12 ? '4 3' : 'none'}
+          strokeWidth={isU12 ? '1.5' : '2'}
+          strokeDasharray={isU12 ? '4 3' : undefined}
         />
 
         {/* ハーフコートセンターサークル */}
@@ -145,7 +145,7 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
           d="M 115,240 A 35 35 0 0 1 185,240"
           fill="none"
           stroke="#475569"
-          stroke-width="1.5"
+          strokeWidth="1.5"
         />
 
         {/* 過去のシュートプロット（履歴） */}
@@ -166,7 +166,7 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
                     r={interactive ? '4.5' : '5.5'}
                     fill="#10b981"
                     stroke="#ffffff"
-                    stroke-width="1"
+                    strokeWidth="1"
                   />
                   <text
                     x={px}
@@ -188,7 +188,7 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
                     r={interactive ? '4.5' : '5.5'}
                     fill="#ef4444"
                     stroke="#ffffff"
-                    stroke-width="1"
+                    strokeWidth="1"
                   />
                   <text
                     x={px}
@@ -229,7 +229,7 @@ export const CourtCanvas: React.FC<CourtCanvasProps> = ({
               r="9"
               fill={isThreePointer(selectedLocation, isU12) ? '#9333ea' : '#2563eb'}
               stroke="#ffffff"
-              stroke-width="2.5"
+              strokeWidth="2.5"
             />
             {/* 中心点 */}
             <circle cx="0" cy="0" r="3" fill="#ffffff" />

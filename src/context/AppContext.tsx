@@ -39,12 +39,16 @@ interface AppContextType {
     awayTeamId: string;
     homeRosterPlayerIds: string[];
     awayRosterPlayerIds: string[];
+    homeOnCourtPlayerIds?: string[];
+    awayOnCourtPlayerIds?: string[];
     isU12?: boolean;
   }) => Game;
   updateGame: (game: Game) => void;
   deleteGame: (gameId: string) => void;
   finishGame: (gameId: string) => void;
   changeQuarter: (gameId: string, nextQuarter: Quarter) => void;
+  setCourtPlayers: (gameId: string, teamSide: 'home' | 'away', playerIds: string[]) => void;
+  substitutePlayer: (gameId: string, teamSide: 'home' | 'away', playerOutId: string, playerInId: string) => void;
 
   // スタッツ記録（コア）
   recordStatEvent: (
@@ -175,8 +179,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     awayTeamId: string;
     homeRosterPlayerIds: string[];
     awayRosterPlayerIds: string[];
+    homeOnCourtPlayerIds?: string[];
+    awayOnCourtPlayerIds?: string[];
     isU12?: boolean;
   }): Game => {
+    const defaultHomeOnCourt =
+      data.homeOnCourtPlayerIds && data.homeOnCourtPlayerIds.length > 0
+        ? data.homeOnCourtPlayerIds
+        : data.homeRosterPlayerIds.slice(0, 5);
+
+    const defaultAwayOnCourt =
+      data.awayOnCourtPlayerIds && data.awayOnCourtPlayerIds.length > 0
+        ? data.awayOnCourtPlayerIds
+        : data.awayRosterPlayerIds.slice(0, 5);
+
     const newGame: Game = {
       id: `game_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       date: data.date,
@@ -185,6 +201,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       awayTeamId: data.awayTeamId,
       homeRosterPlayerIds: data.homeRosterPlayerIds,
       awayRosterPlayerIds: data.awayRosterPlayerIds,
+      homeOnCourtPlayerIds: defaultHomeOnCourt,
+      awayOnCourtPlayerIds: defaultAwayOnCourt,
       currentQuarter: '1Q',
       status: 'in_progress',
       isU12: data.isU12 ?? false,
@@ -215,6 +233,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       prev.map((g) =>
         g.id === gameId ? { ...g, currentQuarter: nextQuarter } : g
       )
+    );
+  };
+
+  const setCourtPlayers = (gameId: string, teamSide: 'home' | 'away', playerIds: string[]) => {
+    setGames((prev) =>
+      prev.map((g) => {
+        if (g.id !== gameId) return g;
+        if (teamSide === 'home') {
+          return { ...g, homeOnCourtPlayerIds: playerIds };
+        } else {
+          return { ...g, awayOnCourtPlayerIds: playerIds };
+        }
+      })
+    );
+  };
+
+  const substitutePlayer = (
+    gameId: string,
+    teamSide: 'home' | 'away',
+    playerOutId: string,
+    playerInId: string
+  ) => {
+    setGames((prev) =>
+      prev.map((g) => {
+        if (g.id !== gameId) return g;
+        const currentCourt =
+          teamSide === 'home'
+            ? (g.homeOnCourtPlayerIds ?? g.homeRosterPlayerIds.slice(0, 5))
+            : (g.awayOnCourtPlayerIds ?? g.awayRosterPlayerIds.slice(0, 5));
+
+        const nextCourt = currentCourt.map((id) => (id === playerOutId ? playerInId : id));
+        if (teamSide === 'home') {
+          return { ...g, homeOnCourtPlayerIds: nextCourt };
+        } else {
+          return { ...g, awayOnCourtPlayerIds: nextCourt };
+        }
+      })
     );
   };
 
@@ -325,6 +380,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       deleteGame,
       finishGame,
       changeQuarter,
+      setCourtPlayers,
+      substitutePlayer,
       recordStatEvent,
       undoLastStatEvent,
       deleteStatEvent,

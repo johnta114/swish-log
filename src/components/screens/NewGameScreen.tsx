@@ -111,6 +111,8 @@ export const NewGameScreen: React.FC = () => {
       awayTeamId,
       homeRosterPlayerIds: homeRoster,
       awayRosterPlayerIds: awayRoster,
+      homeOnCourtPlayerIds: homeRoster.slice(0, 5),
+      awayOnCourtPlayerIds: awayRoster.slice(0, 5),
       isU12,
     });
 
@@ -326,24 +328,33 @@ export const NewGameScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                 {homePlayers.map((p) => {
                   const checked = homeRoster.includes(p.id);
+                  const isStarter = checked && homeRoster.slice(0, 5).includes(p.id);
+
                   return (
                     <button
                       type="button"
                       key={p.id}
                       onClick={() => toggleHomePlayer(p.id)}
-                      className={`flex items-center space-x-2 p-2 rounded-xl text-left text-xs transition border ${
+                      className={`flex items-center justify-between p-2 rounded-xl text-left text-xs transition border ${
                         checked
                           ? 'bg-slate-700/80 border-orange-500/80 text-white'
                           : 'bg-slate-900/60 border-slate-800 text-slate-400'
                       }`}
                     >
-                      {checked ? (
-                        <CheckSquare className="w-4 h-4 text-orange-400 shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-600 shrink-0" />
+                      <div className="flex items-center space-x-1.5 truncate">
+                        {checked ? (
+                          <CheckSquare className="w-4 h-4 text-orange-400 shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-600 shrink-0" />
+                        )}
+                        <span className="font-mono font-bold">#{p.number}</span>
+                        <span className="truncate">{p.name}</span>
+                      </div>
+                      {isStarter && (
+                        <span className="text-[9px] bg-orange-500/20 text-orange-300 px-1 py-0.2 rounded font-bold shrink-0">
+                          先発
+                        </span>
                       )}
-                      <span className="font-mono font-bold">#{p.number}</span>
-                      <span className="truncate">{p.name}</span>
                     </button>
                   );
                 })}
@@ -380,24 +391,33 @@ export const NewGameScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                 {awayPlayers.map((p) => {
                   const checked = awayRoster.includes(p.id);
+                  const isStarter = checked && awayRoster.slice(0, 5).includes(p.id);
+
                   return (
                     <button
                       type="button"
                       key={p.id}
                       onClick={() => toggleAwayPlayer(p.id)}
-                      className={`flex items-center space-x-2 p-2 rounded-xl text-left text-xs transition border ${
+                      className={`flex items-center justify-between p-2 rounded-xl text-left text-xs transition border ${
                         checked
-                          ? 'bg-slate-700/80 border-orange-500/80 text-white'
+                          ? 'bg-slate-700/80 border-blue-500/80 text-white'
                           : 'bg-slate-900/60 border-slate-800 text-slate-400'
                       }`}
                     >
-                      {checked ? (
-                        <CheckSquare className="w-4 h-4 text-orange-400 shrink-0" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-600 shrink-0" />
+                      <div className="flex items-center space-x-1.5 truncate">
+                        {checked ? (
+                          <CheckSquare className="w-4 h-4 text-blue-400 shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-600 shrink-0" />
+                        )}
+                        <span className="font-mono font-bold">#{p.number}</span>
+                        <span className="truncate">{p.name}</span>
+                      </div>
+                      {isStarter && (
+                        <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 py-0.2 rounded font-bold shrink-0">
+                          先発
+                        </span>
                       )}
-                      <span className="font-mono font-bold">#{p.number}</span>
-                      <span className="truncate">{p.name}</span>
                     </button>
                   );
                 })}

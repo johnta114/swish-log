@@ -53,6 +53,8 @@ export const INITIAL_GAMES: Game[] = [
     awayTeamId: 'team_blue',
     homeRosterPlayerIds: ['p_rf_4', 'p_rf_7', 'p_rf_10', 'p_rf_11', 'p_rf_14', 'p_rf_15', 'p_rf_23'],
     awayRosterPlayerIds: ['p_bt_4', 'p_bt_7', 'p_bt_8', 'p_bt_9', 'p_bt_13', 'p_bt_15'],
+    homeOnCourtPlayerIds: ['p_rf_4', 'p_rf_7', 'p_rf_10', 'p_rf_11', 'p_rf_14'],
+    awayOnCourtPlayerIds: ['p_bt_4', 'p_bt_7', 'p_bt_8', 'p_bt_9', 'p_bt_13'],
     currentQuarter: '2Q',
     status: 'in_progress',
     createdAt: Date.now() - 3600000,
