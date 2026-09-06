@@ -289,21 +289,6 @@ export const TotalStatsScreen: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1.5 truncate">
                         <span className="font-black text-sm text-white truncate">{p.name}</span>
-                        {p.position && (
-                          <span className="text-[10px] text-slate-400 font-semibold shrink-0">
-                            ({p.position})
-                          </span>
-                        )}
-                        {p.age !== undefined && !isNaN(p.age) && (
-                          <span className="text-[9px] bg-sky-950/70 text-sky-300 border border-sky-800/60 px-1.5 py-0.5 rounded shrink-0 font-medium">
-                            {p.age}歳
-                          </span>
-                        )}
-                        {p.notes && (
-                          <span className="text-[9px] bg-slate-800 text-slate-300 border border-slate-700 px-1.5 py-0.5 rounded shrink-0">
-                            {p.notes}
-                          </span>
-                        )}
                       </div>
 
                       {/* 過去の背番号履歴 */}

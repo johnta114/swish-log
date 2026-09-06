@@ -295,26 +295,28 @@ export const TeamsScreen: React.FC = () => {
               return (
                 <div
                   key={team.id}
-                  className="bg-slate-800/90 border border-slate-700 rounded-2xl p-3.5 shadow-sm hover:border-slate-600 transition space-y-3"
+                  className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-sm hover:border-slate-600 transition space-y-3"
                 >
-                  {/* 上段: ロゴ・チーム名・略称・編集/削除 */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 min-w-0">
+                  {/* 上段: 左にロゴ/カラー + チーム名・略称・年度 / 右に編集・削除 */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
                       {team.logoUrl ? (
                         <img
                           src={team.logoUrl}
                           alt={team.name}
-                          className="w-10 h-10 rounded-xl object-contain bg-slate-900 border border-slate-700 shrink-0 shadow-sm"
+                          className="w-11 h-11 rounded-xl object-contain bg-slate-900 border border-slate-700 shrink-0 shadow-sm"
                         />
                       ) : (
                         <div
-                          className="w-3.5 h-10 rounded-md shadow-sm shrink-0"
+                          className="w-3.5 h-11 rounded-md shadow-sm shrink-0"
                           style={{ backgroundColor: team.color }}
                         />
                       )}
-                      <div className="min-w-0">
-                        <div className="flex items-center space-x-1.5 flex-wrap">
-                          <span className="font-bold text-sm text-white truncate">{team.name}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="font-bold text-sm text-white truncate max-w-full">
+                            {team.name}
+                          </span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-bold shrink-0">
                             {team.shortName}
                           </span>
@@ -324,16 +326,24 @@ export const TeamsScreen: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          選手: {teamPlayers.length}名
-                        </p>
+                        <div className="text-[11px] text-slate-400 mt-1 flex items-center space-x-3">
+                          <button
+                            onClick={() => navigateTo('players')}
+                            className="hover:text-slate-200 flex items-center gap-1 transition"
+                          >
+                            <UserCheck className="w-3 h-3 text-slate-500" />
+                            <span>選手: {teamPlayers.length}名</span>
+                          </button>
+                          <span className="text-slate-600">•</span>
+                          <span>対戦数: {teamGames.length}試合</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1 shrink-0">
+                    <div className="flex items-center space-x-0.5 shrink-0">
                       <button
                         onClick={() => handleStartEdit(team)}
-                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700/50 transition"
+                        className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition"
                         title="編集"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -348,24 +358,24 @@ export const TeamsScreen: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 下段: 対戦履歴ボタン・マイチーム指定ボタン・選手一覧リンク */}
-                  <div className="pt-2 border-t border-slate-750 flex items-center justify-between gap-2">
+                  {/* 下段: 対戦履歴ボタン & マイチーム指定ボタン（均等2分割でスッキリ） */}
+                  <div className="pt-2 border-t border-slate-700/60 grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setHistoryTeam(team)}
-                      className="flex-1 py-1.5 px-2 bg-sky-950/70 hover:bg-sky-900/90 text-sky-300 hover:text-white rounded-xl text-xs font-bold border border-sky-600/40 transition flex items-center justify-center gap-1.5 active:scale-98 shadow-sm"
+                      className="py-2 px-2.5 bg-sky-950/70 hover:bg-sky-900 text-sky-300 hover:text-white rounded-xl text-xs font-bold border border-sky-500/40 transition flex items-center justify-center gap-1.5 active:scale-98 shadow-sm"
                     >
                       <History className="w-3.5 h-3.5 text-sky-400" />
-                      <span>対戦履歴 ({teamGames.length}試合)</span>
+                      <span>対戦履歴 ({teamGames.length})</span>
                     </button>
                     <button
                       onClick={() => {
                         setMyTeamId(team.id);
                       }}
-                      className="py-1.5 px-3 bg-slate-750 hover:bg-orange-600/30 text-slate-300 hover:text-orange-300 rounded-xl text-xs font-semibold border border-slate-650 transition flex items-center justify-center gap-1.5 active:scale-98"
+                      className="py-2 px-2.5 bg-slate-750 hover:bg-orange-600/30 text-slate-300 hover:text-orange-300 rounded-xl text-xs font-semibold border border-slate-650 transition flex items-center justify-center gap-1.5 active:scale-98"
                       title="このチームをマイチームに設定"
                     >
                       <Shield className="w-3.5 h-3.5 text-orange-400" />
-                      <span>マイチームに指定</span>
+                      <span>マイチーム指定</span>
                     </button>
                   </div>
                 </div>
