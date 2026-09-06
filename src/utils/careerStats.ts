@@ -133,6 +133,7 @@ export function calculatePlayerCareerStats(
     teamId: player.teamId,
     position: player.position,
     grade: player.grade,
+    age: player.age,
     numberHistory: player.numberHistory,
     gamesPlayed,
     points,

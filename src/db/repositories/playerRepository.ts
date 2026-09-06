@@ -7,7 +7,7 @@ export class PlayerRepository {
    */
   public async getAll(): Promise<Player[]> {
     const playerRows = await dbService.query<any>(
-      'SELECT id, team_id, number, name, position, grade, created_at FROM players ORDER BY number ASC'
+      'SELECT id, team_id, number, name, position, grade, age, created_at FROM players ORDER BY number ASC'
     );
 
     const historyRows = await dbService.query<any>(
@@ -32,6 +32,7 @@ export class PlayerRepository {
       name: r.name,
       position: r.position || undefined,
       grade: r.grade || undefined,
+      age: r.age != null ? Number(r.age) : undefined,
       numberHistory: historyMap.get(r.id) || [],
       createdAt: Number(r.created_at),
     }));
@@ -42,8 +43,8 @@ export class PlayerRepository {
    */
   public async save(player: Player): Promise<void> {
     await dbService.run(
-      `INSERT OR REPLACE INTO players (id, team_id, number, name, position, grade, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO players (id, team_id, number, name, position, grade, age, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         player.id,
         player.teamId,
@@ -51,6 +52,7 @@ export class PlayerRepository {
         player.name,
         player.position || null,
         player.grade || null,
+        player.age != null ? player.age : null,
         player.createdAt,
       ]
     );

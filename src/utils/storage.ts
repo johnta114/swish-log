@@ -40,6 +40,7 @@ export const INITIAL_PLAYERS: Player[] = [
     name: '赤井 翼 (C)',
     position: 'C',
     grade: '3年',
+    age: 18,
     numberHistory: [
       { number: 11, changedAt: Date.now() - 31536000000, note: '2025年度（2年生）' },
     ],
@@ -52,6 +53,7 @@ export const INITIAL_PLAYERS: Player[] = [
     name: '佐藤 翔太',
     position: 'PG',
     grade: '3年',
+    age: 17,
     createdAt: 2,
   },
   {
@@ -61,6 +63,7 @@ export const INITIAL_PLAYERS: Player[] = [
     name: '流川 楓斗',
     position: 'SF',
     grade: '2年',
+    age: 16,
     numberHistory: [
       { number: 15, changedAt: Date.now() - 31536000000, note: '2025年度（1年生）' },
     ],
@@ -73,6 +76,7 @@ export const INITIAL_PLAYERS: Player[] = [
     name: '桜庭 蓮',
     position: 'PF',
     grade: '2年',
+    age: 16,
     createdAt: 4,
   },
   {
@@ -82,6 +86,7 @@ export const INITIAL_PLAYERS: Player[] = [
     name: '三井 健司',
     position: 'SG',
     grade: '3年',
+    age: 18,
     createdAt: 5,
   },
   {
@@ -91,6 +96,7 @@ export const INITIAL_PLAYERS: Player[] = [
     name: '木暮 勇気',
     position: 'SF',
     grade: '2年',
+    age: 17,
     createdAt: 6,
   },
   {
@@ -100,16 +106,17 @@ export const INITIAL_PLAYERS: Player[] = [
     name: 'マイケル 高橋',
     position: 'SG',
     grade: '1年',
+    age: 15,
     createdAt: 7,
   },
 
   // ブルー・サンダース (BT)
-  { id: 'p_bt_4', teamId: 'team_blue', number: 4, name: '魚住 大樹 (C)', position: 'C', grade: '3年', createdAt: 8 },
-  { id: 'p_bt_7', teamId: 'team_blue', number: 7, name: '仙道 彰', position: 'PG', grade: '2年', createdAt: 9 },
-  { id: 'p_bt_8', teamId: 'team_blue', number: 8, name: '植草 智紀', position: 'PG', grade: '2年', createdAt: 10 },
-  { id: 'p_bt_9', teamId: 'team_blue', number: 9, name: '越野 宏明', position: 'SG', grade: '2年', createdAt: 11 },
-  { id: 'p_bt_13', teamId: 'team_blue', number: 13, name: '福田 吉兆', position: 'PF', grade: '2年', createdAt: 12 },
-  { id: 'p_bt_15', teamId: 'team_blue', number: 15, name: '菅平 誠', position: 'C', grade: '1年', createdAt: 13 },
+  { id: 'p_bt_4', teamId: 'team_blue', number: 4, name: '魚住 大樹 (C)', position: 'C', grade: '3年', age: 18, createdAt: 8 },
+  { id: 'p_bt_7', teamId: 'team_blue', number: 7, name: '仙道 彰', position: 'PG', grade: '2年', age: 17, createdAt: 9 },
+  { id: 'p_bt_8', teamId: 'team_blue', number: 8, name: '植草 智紀', position: 'PG', grade: '2年', age: 17, createdAt: 10 },
+  { id: 'p_bt_9', teamId: 'team_blue', number: 9, name: '越野 宏明', position: 'SG', grade: '2年', age: 16, createdAt: 11 },
+  { id: 'p_bt_13', teamId: 'team_blue', number: 13, name: '福田 吉兆', position: 'PF', grade: '2年', age: 17, createdAt: 12 },
+  { id: 'p_bt_15', teamId: 'team_blue', number: 15, name: '菅平 誠', position: 'C', grade: '1年', age: 15, createdAt: 13 },
 ];
 
 export const INITIAL_GAMES: Game[] = [

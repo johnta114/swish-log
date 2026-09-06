@@ -103,6 +103,7 @@ export interface Team {
   createdAt: number;
   isMyTeam?: boolean;
   seasonYear?: number; // 年度（例: 2026）
+  logoUrl?: string; // チームロゴ（画像DataURLまたはURL）
 }
 
 export interface PlayerNumberHistory {
@@ -118,6 +119,7 @@ export interface Player {
   name: string;
   position?: string;
   grade?: string;
+  age?: number; // 年齢（任意）
   numberHistory?: PlayerNumberHistory[];
   createdAt: number;
 }
@@ -252,6 +254,7 @@ export interface PlayerCareerStats {
   teamId: string;
   position?: string;
   grade?: string;
+  age?: number;
   numberHistory?: PlayerNumberHistory[];
   gamesPlayed: number;
   points: number;

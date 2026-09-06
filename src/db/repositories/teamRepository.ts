@@ -7,7 +7,7 @@ export class TeamRepository {
    */
   public async getAll(): Promise<Team[]> {
     const rows = await dbService.query<any>(
-      'SELECT id, name, short_name, color, is_my_team, season_year, created_at FROM teams ORDER BY created_at ASC'
+      'SELECT id, name, short_name, color, is_my_team, season_year, logo_url, created_at FROM teams ORDER BY created_at ASC'
     );
 
     return rows.map((r) => ({
@@ -17,6 +17,7 @@ export class TeamRepository {
       color: r.color,
       isMyTeam: Boolean(r.is_my_team),
       seasonYear: r.season_year != null ? Number(r.season_year) : undefined,
+      logoUrl: r.logo_url || undefined,
       createdAt: Number(r.created_at),
     }));
   }
@@ -26,8 +27,8 @@ export class TeamRepository {
    */
   public async save(team: Team): Promise<void> {
     await dbService.run(
-      `INSERT OR REPLACE INTO teams (id, name, short_name, color, is_my_team, season_year, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO teams (id, name, short_name, color, is_my_team, season_year, logo_url, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         team.id,
         team.name,
@@ -35,6 +36,7 @@ export class TeamRepository {
         team.color,
         team.isMyTeam ? 1 : 0,
         team.seasonYear != null ? team.seasonYear : null,
+        team.logoUrl || null,
         team.createdAt,
       ]
     );

@@ -42,6 +42,40 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    name: 'add_player_age',
+    up: async (service: SQLiteService) => {
+      try {
+        const tableInfo = await service.query<any>('PRAGMA table_info(players)');
+        const hasColumn = tableInfo.some((col: any) => col.name === 'age');
+        if (!hasColumn) {
+          await service.run('ALTER TABLE players ADD COLUMN age INTEGER DEFAULT NULL');
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('duplicate column')) {
+          throw err;
+        }
+      }
+    },
+  },
+  {
+    version: 4,
+    name: 'add_team_logo_url',
+    up: async (service: SQLiteService) => {
+      try {
+        const tableInfo = await service.query<any>('PRAGMA table_info(teams)');
+        const hasColumn = tableInfo.some((col: any) => col.name === 'logo_url');
+        if (!hasColumn) {
+          await service.run('ALTER TABLE teams ADD COLUMN logo_url TEXT DEFAULT NULL');
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('duplicate column')) {
+          throw err;
+        }
+      }
+    },
+  },
 ];
 
 /**

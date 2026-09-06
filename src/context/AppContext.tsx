@@ -17,7 +17,8 @@ export type ScreenType =
   | 'players'
   | 'new_game'
   | 'live_game'
-  | 'stats_view';
+  | 'stats_view'
+  | 'settings';
 
 interface AppContextType {
   // DB状態

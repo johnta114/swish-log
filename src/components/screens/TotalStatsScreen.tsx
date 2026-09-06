@@ -5,7 +5,6 @@ import { exportTeamCareerStatsCSV } from '../../utils/csvExport';
 import { CourtCanvas } from '../common/CourtCanvas';
 import type { PlayerCareerStats } from '../../types';
 import {
-  BarChart2,
   Trophy,
   Shield,
   Users,
@@ -38,7 +37,6 @@ export const TotalStatsScreen: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>('points');
 
   const currentTeam = teams.find((t) => t.id === selectedTeamId);
-  const isMyTeam = currentTeam?.id === myTeamId;
 
   // チーム全体の通算スタッツ計算
   const careerStats = useMemo(() => {
@@ -88,64 +86,47 @@ export const TotalStatsScreen: React.FC = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      {/* 画面ヘッダー */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400">
-            <BarChart2 className="w-4 h-4" />
+      {/* チーム切り替えピル & 通算CSVボタン */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        {teams.length > 1 ? (
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
+            {teams.map((t) => {
+              const isSelected = t.id === selectedTeamId;
+              const isTMyTeam = t.id === myTeamId;
+
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTeamId(t.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border ${
+                    isSelected
+                      ? 'bg-slate-800 border-orange-500 text-white shadow ring-1 ring-orange-500/40'
+                      : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: t.color }}
+                  />
+                  <span>{t.name}</span>
+                  {isTMyTeam && <Shield className="w-2.5 h-2.5 text-orange-400" />}
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <h2 className="text-base font-black text-white flex items-center space-x-1.5">
-              <span>通算スタッツ</span>
-              {isMyTeam && (
-                <span className="text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/40 font-bold px-1.5 py-0.2 rounded-full flex items-center space-x-0.5">
-                  <Shield className="w-2.5 h-2.5" />
-                  <span>マイチーム</span>
-                </span>
-              )}
-            </h2>
-            <p className="text-[10px] text-slate-400">全試合を通じた選手の累計・平均成績</p>
-          </div>
-        </div>
+        ) : (
+          <div />
+        )}
 
         <button
           onClick={() => careerStats && exportTeamCareerStatsCSV(careerStats)}
-          className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl font-bold flex items-center space-x-1.5 transition active:scale-95 shadow-sm"
+          className="text-xs bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl font-bold flex items-center space-x-1.5 transition active:scale-95 shadow-sm shrink-0"
           title="チーム通算スタッツ一覧をCSV形式で出力"
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
           <span>通算CSV</span>
         </button>
       </div>
-
-      {/* チーム切り替えピル（マイチーム優先） */}
-      {teams.length > 1 && (
-        <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
-          {teams.map((t) => {
-            const isSelected = t.id === selectedTeamId;
-            const isTMyTeam = t.id === myTeamId;
-
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSelectedTeamId(t.id)}
-                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border ${
-                  isSelected
-                    ? 'bg-slate-800 border-orange-500 text-white shadow ring-1 ring-orange-500/40'
-                    : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: t.color }}
-                />
-                <span>{t.name}</span>
-                {isTMyTeam && <Shield className="w-2.5 h-2.5 text-orange-400" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {/* チーム通算サマリーカード */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 border border-slate-700/80 rounded-2xl p-3.5 shadow-lg space-y-3 relative overflow-hidden">
@@ -300,11 +281,15 @@ export const TotalStatsScreen: React.FC = () => {
                             ({p.position})
                           </span>
                         )}
-                        {p.grade && (
+                        {p.age !== undefined && !isNaN(p.age) ? (
+                          <span className="text-[9px] bg-sky-950/70 text-sky-300 border border-sky-800/60 px-1.5 py-0.5 rounded shrink-0 font-medium">
+                            {p.age}歳
+                          </span>
+                        ) : p.grade ? (
                           <span className="text-[9px] bg-slate-700 text-slate-300 px-1 py-0.2 rounded shrink-0">
                             {p.grade}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {/* 過去の背番号履歴 */}

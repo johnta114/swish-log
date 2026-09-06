@@ -4,7 +4,6 @@ import type { Player } from '../../types';
 import { Users, Plus, Edit2, Trash2, ArrowLeft, Check, History, BarChart2, Shield } from 'lucide-react';
 
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
-const GRADE_PRESETS = ['1年', '2年', '3年', '4年', '一般'];
 
 export const PlayersScreen: React.FC = () => {
   const { teams, players, myTeamId, addPlayer, updatePlayer, deletePlayer, navigateTo } = useApp();
@@ -22,6 +21,7 @@ export const PlayersScreen: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [position, setPosition] = useState<string>('PG');
   const [grade, setGrade] = useState<string>('');
+  const [age, setAge] = useState<string>('');
   const [error, setError] = useState<string>('');
 
   const currentTeam = teams.find((t) => t.id === selectedTeamId);
@@ -38,6 +38,7 @@ export const PlayersScreen: React.FC = () => {
     setName(p.name);
     setPosition(p.position || 'PG');
     setGrade(p.grade || '');
+    setAge(p.age !== undefined ? p.age.toString() : '');
     setError('');
   };
 
@@ -47,6 +48,7 @@ export const PlayersScreen: React.FC = () => {
     setName('');
     setPosition('PG');
     setGrade('');
+    setAge('');
     setError('');
   };
 
@@ -63,6 +65,12 @@ export const PlayersScreen: React.FC = () => {
     }
     if (!name.trim()) {
       setError('選手氏名を入力してください');
+      return;
+    }
+
+    const ageVal = age.trim() ? parseInt(age, 10) : undefined;
+    if (age.trim() && (ageVal === undefined || isNaN(ageVal) || ageVal < 1 || ageVal > 120)) {
+      setError('年齢は正しく数値を入力してください');
       return;
     }
 
@@ -84,6 +92,7 @@ export const PlayersScreen: React.FC = () => {
           name: name.trim(),
           position,
           grade: grade.trim() || undefined,
+          age: ageVal,
         });
       }
     } else {
@@ -93,6 +102,7 @@ export const PlayersScreen: React.FC = () => {
         name: name.trim(),
         position,
         grade: grade.trim() || undefined,
+        age: ageVal,
       });
     }
 
@@ -264,26 +274,22 @@ export const PlayersScreen: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 学年・所属カテゴリ */}
+                {/* 年齢（数値・任意） */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    学年 / 年代（任意）
+                    年齢（任意）
                   </label>
-                  <div className="flex gap-1">
-                    {GRADE_PRESETS.map((g) => (
-                      <button
-                        type="button"
-                        key={g}
-                        onClick={() => setGrade(grade === g ? '' : g)}
-                        className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition ${
-                          grade === g
-                            ? 'bg-amber-600 text-white shadow-sm'
-                            : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {g}
-                      </button>
-                    ))}
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      placeholder="例: 17"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 font-mono"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs text-slate-400">歳</span>
                   </div>
                 </div>
               </div>
@@ -360,11 +366,15 @@ export const PlayersScreen: React.FC = () => {
                               {player.position}
                             </span>
                           )}
-                          {player.grade && (
+                          {player.age !== undefined && !isNaN(player.age) ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-950/70 text-sky-300 font-semibold border border-sky-800/60">
+                              {player.age}歳
+                            </span>
+                          ) : player.grade ? (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40">
                               {player.grade}
                             </span>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* 旧背番号履歴表示 */}

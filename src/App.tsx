@@ -9,6 +9,7 @@ import { NewGameScreen } from './components/screens/NewGameScreen';
 import { LiveGameScreen } from './components/screens/LiveGameScreen';
 import { GameStatsScreen } from './components/screens/GameStatsScreen';
 import { TotalStatsScreen } from './components/screens/TotalStatsScreen';
+import { SettingsScreen } from './components/screens/SettingsScreen';
 
 const MainContent: React.FC = () => {
   const { currentScreen } = useApp();
@@ -28,6 +29,7 @@ const MainContent: React.FC = () => {
           {currentScreen === 'new_game' && <NewGameScreen />}
           {currentScreen === 'live_game' && <LiveGameScreen />}
           {currentScreen === 'stats_view' && <GameStatsScreen />}
+          {currentScreen === 'settings' && <SettingsScreen />}
         </main>
       </div>
     </div>

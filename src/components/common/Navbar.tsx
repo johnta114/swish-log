@@ -1,20 +1,14 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Home, Users, PlusCircle, RotateCcw, BarChart2, Shield } from 'lucide-react';
+import { Home, Users, BarChart2, Shield, Settings } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { currentScreen, navigateTo, resetData } = useApp();
+  const { currentScreen, navigateTo } = useApp();
 
   // スタッツ登録画面では入力集中・画面領域最大化のためナビゲーションは非表示または最小化
   if (currentScreen === 'live_game') {
     return null;
   }
-
-  const handleReset = () => {
-    if (window.confirm('全データをデモ初期データにリセットしますか？')) {
-      resetData();
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800 pt-safe">
@@ -36,21 +30,18 @@ export const Navbar: React.FC = () => {
           </div>
         </button>
 
-        {/* 右側アクション */}
-        <div className="flex items-center space-x-1.5 shrink-0">
+        {/* 右側アクション: 設定ボタン（歯車アイコン） */}
+        <div className="flex items-center space-x-1 shrink-0">
           <button
-            onClick={() => navigateTo('new_game')}
-            className="flex items-center space-x-1 text-xs bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-semibold px-2.5 py-1.5 rounded-lg transition shadow-sm"
+            onClick={() => navigateTo('settings')}
+            title="設定"
+            className={`p-2 rounded-xl transition ${
+              currentScreen === 'settings'
+                ? 'bg-slate-800 text-orange-400 border border-orange-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+            }`}
           >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>新規試合</span>
-          </button>
-          <button
-            onClick={handleReset}
-            title="サンプルデータ再読み込み"
-            className="p-1 text-slate-400 hover:text-slate-200 active:rotate-180 transition duration-300"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <Settings className="w-5 h-5" />
           </button>
         </div>
       </div>

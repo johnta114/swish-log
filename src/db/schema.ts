@@ -5,7 +5,7 @@ export const DB_VERSION = 1;
  * 現在のアプリが要求する最新スキーマバージョン
  * スキーマ変更を行うたびにインクリメントし、migrations.ts にマイグレーションを追加すること
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 export const CREATE_TABLES_SQL = `
 -- スキーママイグレーション履歴テーブル（アップデート時のデータ保護用）
@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS teams (
   color TEXT NOT NULL DEFAULT '#ef4444',
   is_my_team INTEGER NOT NULL DEFAULT 0,
   season_year INTEGER DEFAULT NULL,
+  logo_url TEXT DEFAULT NULL,
   created_at INTEGER NOT NULL
 );
 
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS players (
   name TEXT NOT NULL,
   position TEXT,
   grade TEXT,
+  age INTEGER DEFAULT NULL,
   created_at INTEGER NOT NULL,
   FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
 );

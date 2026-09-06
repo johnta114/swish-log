@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { Team } from '../../types';
-import { Shield, Plus, Edit2, Trash2, ArrowLeft, Check, UserCheck } from 'lucide-react';
+import { Shield, Plus, Edit2, Trash2, Check, UserCheck } from 'lucide-react';
 
 const COLOR_PRESETS = [
   '#ef4444', // 赤
@@ -94,24 +94,6 @@ export const TeamsScreen: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* 画面ヘッダー */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => navigateTo('home')}
-            className="p-2 -ml-2 text-slate-400 hover:text-white rounded-lg transition"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h2 className="text-lg font-bold text-white">対戦相手チーム管理</h2>
-            <p className="text-xs text-slate-400">試合の対戦相手チームを登録・管理します</p>
-          </div>
-        </div>
-        <span className="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700 font-semibold">
-          {opponentTeams.length} チーム
-        </span>
-      </div>
 
       {/* 自チームリンク案内バー */}
       {myTeam && (
@@ -277,10 +259,18 @@ export const TeamsScreen: React.FC = () => {
                   className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-slate-600 transition"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
-                    <div
-                      className="w-4 h-10 rounded-md shadow-sm shrink-0"
-                      style={{ backgroundColor: team.color }}
-                    />
+                    {team.logoUrl ? (
+                      <img
+                        src={team.logoUrl}
+                        alt={team.name}
+                        className="w-10 h-10 rounded-lg object-contain bg-slate-900 border border-slate-700 shrink-0 shadow-sm"
+                      />
+                    ) : (
+                      <div
+                        className="w-4 h-10 rounded-md shadow-sm shrink-0"
+                        style={{ backgroundColor: team.color }}
+                      />
+                    )}
                     <div className="min-w-0">
                       <div className="flex items-center space-x-2 flex-wrap">
                         <span className="font-bold text-sm text-white truncate">{team.name}</span>

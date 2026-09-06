@@ -12,6 +12,7 @@ import {
   Check,
   X,
   Users,
+  Upload,
 } from 'lucide-react';
 
 const COLOR_PRESETS = [
@@ -29,6 +30,7 @@ const COLOR_PRESETS = [
   '#ffffff', // 白
 ];
 
+const LOGO_PRESETS = ['🏀', '🦅', '⚡', '🐯', '🐺', '🦁', '🐉', '👑', '🔥', '🛡️', '⭐', '🚀'];
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
 const GRADE_PRESETS = ['1年', '2年', '3年', '4年', '一般'];
 
@@ -59,6 +61,7 @@ export const MyTeamScreen: React.FC = () => {
   const [teamShortName, setTeamShortName] = useState('');
   const [teamColor, setTeamColor] = useState('#3b82f6');
   const [teamYear, setTeamYear] = useState<number>(new Date().getFullYear());
+  const [teamLogoUrl, setTeamLogoUrl] = useState('');
   const [teamError, setTeamError] = useState('');
 
   // 新年度チーム引き継ぎ作成モーダル状態
@@ -74,6 +77,7 @@ export const MyTeamScreen: React.FC = () => {
   const [playerName, setPlayerName] = useState('');
   const [playerPosition, setPlayerPosition] = useState('PG');
   const [playerGrade, setPlayerGrade] = useState('');
+  const [playerAge, setPlayerAge] = useState('');
   const [playerError, setPlayerError] = useState('');
 
   // マイチーム所属選手
@@ -132,14 +136,56 @@ export const MyTeamScreen: React.FC = () => {
       setTeamShortName(myTeam.shortName);
       setTeamColor(myTeam.color);
       setTeamYear(myTeam.seasonYear || new Date().getFullYear());
+      setTeamLogoUrl(myTeam.logoUrl || '');
     } else {
       setTeamName('');
       setTeamShortName('');
       setTeamColor('#3b82f6');
       setTeamYear(new Date().getFullYear());
+      setTeamLogoUrl('');
     }
     setTeamError('');
     setIsEditingTeam(true);
+  };
+
+  // ロゴ画像アップロード処理（Canvasで最大256pxに圧縮リサイズ）
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/png');
+          setTeamLogoUrl(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   // マイチーム解除
@@ -165,6 +211,7 @@ export const MyTeamScreen: React.FC = () => {
         shortName: teamShortName.trim() || teamName.trim().slice(0, 4).toUpperCase(),
         color: teamColor,
         seasonYear: teamYear,
+        logoUrl: teamLogoUrl.trim() || undefined,
         isMyTeam: true,
       });
     } else {
@@ -173,6 +220,7 @@ export const MyTeamScreen: React.FC = () => {
         shortName: teamShortName.trim() || teamName.trim().slice(0, 4).toUpperCase(),
         color: teamColor,
         seasonYear: teamYear,
+        logoUrl: teamLogoUrl.trim() || undefined,
         isMyTeam: true,
       });
       setMyTeamId(newTeam.id);
@@ -192,7 +240,7 @@ export const MyTeamScreen: React.FC = () => {
     setIsNewSeasonModalOpen(true);
   };
 
-  // 新年度チーム作成実行（選手引き継ぎ）
+  // 新年度チーム作成実行（選手引き継ぎ & 年齢+1）
   const handleCreateNewSeasonTeam = (e: React.FormEvent) => {
     e.preventDefault();
     if (!myTeam) return;
@@ -202,18 +250,22 @@ export const MyTeamScreen: React.FC = () => {
       return;
     }
 
-    // 1. 新年度チームを作成
+    // 1. 新年度チームを作成（ロゴ情報も引き継ぎ）
     const newTeam = addTeam({
       name: myTeam.name,
       shortName: myTeam.shortName,
       color: myTeam.color,
       seasonYear: newSeasonYear,
+      logoUrl: myTeam.logoUrl,
       isMyTeam: true,
     });
 
     // 2. 選択された選手を新チームの選手として複製・引き継ぎ
     const playersToCarry = myTeamPlayers.filter((p) => carryOverPlayerIds.includes(p.id));
     for (const p of playersToCarry) {
+      // 年齢を1増やす（設定されている場合）
+      const nextAge = typeof p.age === 'number' && !isNaN(p.age) ? p.age + 1 : undefined;
+
       // 学年を1つ進める（例: 1年→2年、2年→3年）
       let nextGrade = p.grade;
       if (p.grade === '1年') nextGrade = '2年';
@@ -227,6 +279,7 @@ export const MyTeamScreen: React.FC = () => {
         name: p.name,
         position: p.position,
         grade: nextGrade,
+        age: nextAge,
         numberHistory: p.numberHistory ? [...p.numberHistory] : undefined,
       });
     }
@@ -244,6 +297,7 @@ export const MyTeamScreen: React.FC = () => {
     setPlayerName('');
     setPlayerPosition('PG');
     setPlayerGrade('');
+    setPlayerAge('');
     setPlayerError('');
     setIsPlayerModalOpen(true);
   };
@@ -255,6 +309,7 @@ export const MyTeamScreen: React.FC = () => {
     setPlayerName(p.name);
     setPlayerPosition(p.position || 'PG');
     setPlayerGrade(p.grade || '');
+    setPlayerAge(p.age !== undefined ? p.age.toString() : '');
     setPlayerError('');
     setIsPlayerModalOpen(true);
   };
@@ -271,6 +326,12 @@ export const MyTeamScreen: React.FC = () => {
     }
     if (!playerName.trim()) {
       setPlayerError('選手氏名を入力してください');
+      return;
+    }
+
+    const ageVal = playerAge.trim() ? parseInt(playerAge, 10) : undefined;
+    if (playerAge.trim() && (ageVal === undefined || isNaN(ageVal) || ageVal < 1 || ageVal > 120)) {
+      setPlayerError('年齢は正しく数値を入力してください');
       return;
     }
 
@@ -292,6 +353,7 @@ export const MyTeamScreen: React.FC = () => {
           name: playerName.trim(),
           position: playerPosition,
           grade: playerGrade.trim() || undefined,
+          age: ageVal,
         });
       }
     } else {
@@ -301,6 +363,7 @@ export const MyTeamScreen: React.FC = () => {
         name: playerName.trim(),
         position: playerPosition,
         grade: playerGrade.trim() || undefined,
+        age: ageVal,
       });
     }
 
@@ -321,24 +384,9 @@ export const MyTeamScreen: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* 画面ヘッダー */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center space-x-2">
-          <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
-            <Shield className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-1.5">
-              マイチーム管理
-              <span className="text-[10px] bg-orange-500/20 text-orange-300 font-semibold px-2 py-0.5 rounded-full border border-orange-500/30">
-                自チーム専用
-              </span>
-            </h2>
-            <p className="text-xs text-slate-400">所属選手・登録情報・通算スタッツを一元管理</p>
-          </div>
-        </div>
-
-        {myTeam && (
+      {/* 画面上部アクション（マイチーム設定時のみ表示） */}
+      {myTeam && (
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
           <div className="flex items-center space-x-2">
             {myTeamList.length > 1 && (
               <select
@@ -353,7 +401,9 @@ export const MyTeamScreen: React.FC = () => {
                 ))}
               </select>
             )}
+          </div>
 
+          <div className="flex items-center space-x-2">
             <button
               onClick={handleOpenNewSeason}
               className="flex items-center space-x-1 text-xs bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 px-2.5 py-1.5 rounded-lg transition font-semibold"
@@ -371,8 +421,8 @@ export const MyTeamScreen: React.FC = () => {
               <span>設定</span>
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* マイチーム未登録状態 */}
       {!myTeam ? (
@@ -433,15 +483,29 @@ export const MyTeamScreen: React.FC = () => {
 
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3.5">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shadow-inner border border-white/20 shrink-0"
-                  style={{
-                    backgroundColor: myTeam.color,
-                    color: myTeam.color === '#ffffff' ? '#0f172a' : '#ffffff',
-                  }}
-                >
-                  {myTeam.shortName}
-                </div>
+                {myTeam.logoUrl ? (
+                  myTeam.logoUrl.startsWith('data:') || myTeam.logoUrl.startsWith('http') || myTeam.logoUrl.startsWith('/') ? (
+                    <img
+                      src={myTeam.logoUrl}
+                      alt={myTeam.name}
+                      className="w-14 h-14 rounded-2xl object-contain bg-slate-900 border border-slate-700 p-1 shadow-lg shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl shadow-lg shrink-0">
+                      {myTeam.logoUrl}
+                    </div>
+                  )
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shadow-inner border border-white/20 shrink-0"
+                    style={{
+                      backgroundColor: myTeam.color,
+                      color: myTeam.color === '#ffffff' ? '#0f172a' : '#ffffff',
+                    }}
+                  >
+                    {myTeam.shortName}
+                  </div>
+                )}
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-xl font-black text-white">{myTeam.name}</h3>
@@ -536,11 +600,15 @@ export const MyTeamScreen: React.FC = () => {
                               {player.position}
                             </span>
                           )}
-                          {player.grade && (
+                          {player.age !== undefined && !isNaN(player.age) ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-300 border border-sky-800/50 font-medium">
+                              {player.age}歳
+                            </span>
+                          ) : player.grade ? (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-300 border border-sky-800/50">
                               {player.grade}
                             </span>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* 旧背番号履歴 */}
@@ -670,6 +738,76 @@ export const MyTeamScreen: React.FC = () => {
                 </div>
               </div>
 
+              {/* チームロゴ設定 */}
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                  チームロゴ（画像またはシンボル）
+                </label>
+
+                {/* 現在のロゴプレビュー & 画像選択 */}
+                <div className="flex items-center space-x-3 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
+                    {teamLogoUrl ? (
+                      teamLogoUrl.startsWith('data:') || teamLogoUrl.startsWith('http') || teamLogoUrl.startsWith('/') ? (
+                        <img src={teamLogoUrl} alt="Logo" className="w-full h-full object-contain" />
+                      ) : (
+                        <span className="text-2xl">{teamLogoUrl}</span>
+                      )
+                    ) : (
+                      <Shield className="w-6 h-6 text-slate-500" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 cursor-pointer active:scale-95 transition">
+                        <Upload className="w-3.5 h-3.5 text-orange-400" />
+                        <span>画像ファイルを選択</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {teamLogoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setTeamLogoUrl('')}
+                          className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline font-medium"
+                        >
+                          ロゴ削除
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      スマホ・PCの写真や画像を設定可能
+                    </p>
+                  </div>
+                </div>
+
+                {/* プリセットシンボル */}
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400 font-medium">またはシンボルアイコンから選択:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LOGO_PRESETS.map((icon) => (
+                      <button
+                        key={icon}
+                        type="button"
+                        onClick={() => setTeamLogoUrl(icon)}
+                        className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border transition ${
+                          teamLogoUrl === icon
+                            ? 'bg-orange-500/20 border-orange-500 scale-110 shadow-sm'
+                            : 'bg-slate-800 border-slate-700 hover:bg-slate-750'
+                        }`}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-2 flex items-center justify-between">
                 {myTeam ? (
                   <button
@@ -792,17 +930,24 @@ export const MyTeamScreen: React.FC = () => {
                           <span className="font-mono font-bold">#{p.number}</span>
                           <span>{p.name}</span>
                         </div>
-                        {p.grade && (
-                          <span className="text-[10px] text-slate-500">
-                            現在: {p.grade}
-                          </span>
-                        )}
+                        <div className="text-right">
+                          {p.age !== undefined && !isNaN(p.age) && (
+                            <span className="text-[10px] text-sky-400 block font-medium">
+                              現在: {p.age}歳 → 新年度: {p.age + 1}歳
+                            </span>
+                          )}
+                          {p.grade && (
+                            <span className="text-[9px] text-slate-500">
+                              学年: {p.grade}
+                            </span>
+                          )}
+                        </div>
                       </label>
                     );
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  ※引き継ぎ時、学年は自動的に+1年（例: 1年→2年、3年→4年）繰り上がります。
+                  ※引き継ぎ時、年齢は+1歳加算され、学年も自動的に繰り上がります。
                 </p>
               </div>
 
@@ -889,6 +1034,24 @@ export const MyTeamScreen: React.FC = () => {
                   placeholder="例: 田中 太郎"
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
                 />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  年齢 (任意)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={playerAge}
+                    onChange={(e) => setPlayerAge(e.target.value)}
+                    placeholder="例: 17"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 font-mono focus:outline-none focus:border-orange-500"
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">歳</span>
+                </div>
               </div>
 
               <div>

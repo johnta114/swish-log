@@ -14,10 +14,17 @@ import {
   Video,
   CheckSquare,
   Square,
+  Plus,
+  X,
+  Check,
 } from 'lucide-react';
 
+const QUICK_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b', '#000000', '#ffffff'
+];
+
 export const NewGameScreen: React.FC = () => {
-  const { teams, players, myTeamId, createGame, navigateTo } = useApp();
+  const { teams, players, myTeamId, createGame, addTeam, addPlayer, navigateTo } = useApp();
 
   const [date, setDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
@@ -38,6 +45,65 @@ export const NewGameScreen: React.FC = () => {
   const [homeRoster, setHomeRoster] = useState<string[]>([]);
   const [awayRoster, setAwayRoster] = useState<string[]>([]);
   const [error, setError] = useState<string>('');
+
+  // 相手チームクイック追加モーダル状態
+  const [isQuickTeamModalOpen, setIsQuickTeamModalOpen] = useState<boolean>(false);
+  const [quickTeamName, setQuickTeamName] = useState<string>('');
+  const [quickTeamShortName, setQuickTeamShortName] = useState<string>('');
+  const [quickTeamColor, setQuickTeamColor] = useState<string>('#3b82f6');
+  const [quickAutoCreatePlayers, setQuickAutoCreatePlayers] = useState<boolean>(true);
+  const [quickPlayerNumbers, setQuickPlayerNumbers] = useState<string>('4, 5, 6, 7, 8');
+  const [quickTeamError, setQuickTeamError] = useState<string>('');
+
+  const handleOpenQuickTeamModal = () => {
+    setQuickTeamName('');
+    setQuickTeamShortName('');
+    setQuickTeamColor('#3b82f6');
+    setQuickAutoCreatePlayers(true);
+    setQuickPlayerNumbers('4, 5, 6, 7, 8');
+    setQuickTeamError('');
+    setIsQuickTeamModalOpen(true);
+  };
+
+  const handleCreateQuickTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickTeamName.trim()) {
+      setQuickTeamError('チーム名を入力してください');
+      return;
+    }
+
+    // 1. 相手チームを作成
+    const newTeam = addTeam({
+      name: quickTeamName.trim(),
+      shortName: quickTeamShortName.trim() || quickTeamName.trim().slice(0, 4).toUpperCase(),
+      color: quickTeamColor,
+      isMyTeam: false,
+    });
+
+    // 2. スターター選手を自動登録
+    const createdPlayerIds: string[] = [];
+    if (quickAutoCreatePlayers) {
+      const numbers = quickPlayerNumbers
+        .split(/[,\s]+/)
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n) && n >= 0 && n <= 99);
+
+      const uniqueNumbers = Array.from(new Set(numbers.length > 0 ? numbers : [4, 5, 6, 7, 8]));
+      for (const num of uniqueNumbers) {
+        const p = addPlayer({
+          teamId: newTeam.id,
+          number: num,
+          name: `#${num}`,
+        });
+        createdPlayerIds.push(p.id);
+      }
+    }
+
+    // 3. アウェイチームとして選択＆ロスターに設定
+    setAwayTeamId(newTeam.id);
+    setAwayRoster(createdPlayerIds);
+    setIsQuickTeamModalOpen(false);
+  };
 
   // 初期チーム設定（マイチーム優先）
   useEffect(() => {
@@ -448,6 +514,14 @@ export const NewGameScreen: React.FC = () => {
                 style={{ backgroundColor: awayTeam.color }}
               />
             )}
+            <button
+              type="button"
+              onClick={handleOpenQuickTeamModal}
+              className="w-full mt-1.5 py-1.5 px-2 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 active:scale-95 border border-sky-500/30 text-sky-400 text-[11px] font-bold flex items-center justify-center space-x-1 transition"
+            >
+              <Plus className="w-3 h-3" />
+              <span>相手チームを新規追加</span>
+            </button>
           </div>
         </div>
 
@@ -591,6 +665,145 @@ export const NewGameScreen: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* 相手チームクイック新規作成モーダル */}
+      {isQuickTeamModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Shield className="w-4 h-4 text-sky-400" />
+                <span>対戦相手チームの新規追加</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsQuickTeamModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {quickTeamError && (
+              <div className="p-2.5 bg-red-950/60 border border-red-800/80 rounded-lg text-xs text-red-300">
+                {quickTeamError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateQuickTeam} className="space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  相手チーム名 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={quickTeamName}
+                  onChange={(e) => setQuickTeamName(e.target.value)}
+                  placeholder="例: 横浜クラブ、陵南高校"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    略称 (2〜4文字)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={quickTeamShortName}
+                    onChange={(e) => setQuickTeamShortName(e.target.value)}
+                    placeholder="例: YKH"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 uppercase font-mono focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    チームカラー
+                  </label>
+                  <div className="flex items-center space-x-2 pt-1">
+                    <span
+                      className="w-8 h-8 rounded-lg border border-slate-600 shrink-0 shadow-sm"
+                      style={{ backgroundColor: quickTeamColor }}
+                    />
+                    <span className="text-xs font-mono text-slate-400 truncate">
+                      {quickTeamColor}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* カラーパレット */}
+              <div className="grid grid-cols-6 gap-1.5 pt-1">
+                {QUICK_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setQuickTeamColor(c)}
+                    className={`h-7 rounded-lg border flex items-center justify-center transition ${
+                      quickTeamColor === c ? 'border-white scale-105 shadow' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: c }}
+                  >
+                    {quickTeamColor === c && (
+                      <Check className={`w-3.5 h-3.5 ${c === '#ffffff' ? 'text-black' : 'text-white'}`} />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* スターター選手クイック自動作成 */}
+              <div className="pt-2 border-t border-slate-800 space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer text-xs font-semibold text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={quickAutoCreatePlayers}
+                    onChange={(e) => setQuickAutoCreatePlayers(e.target.checked)}
+                    className="rounded border-slate-700 text-sky-500 focus:ring-sky-500"
+                  />
+                  <span>スターター選手を自動で登録する</span>
+                </label>
+
+                {quickAutoCreatePlayers && (
+                  <div>
+                    <label className="text-[11px] text-slate-400 block mb-1">
+                      登録する背番号（カンマ区切り）:
+                    </label>
+                    <input
+                      type="text"
+                      value={quickPlayerNumbers}
+                      onChange={(e) => setQuickPlayerNumbers(e.target.value)}
+                      placeholder="4, 5, 6, 7, 8"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      ※選手名・交代選手は試合中いつでも追加・変更できます
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickTeamModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-sky-600 hover:bg-sky-500 text-white shadow-md active:scale-95 transition"
+                >
+                  登録してアウェイに選択
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
