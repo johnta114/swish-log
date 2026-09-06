@@ -76,6 +76,27 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 5,
+    name: 'add_player_sub_number_and_notes',
+    up: async (service: SQLiteService) => {
+      try {
+        const tableInfo = await service.query<any>('PRAGMA table_info(players)');
+        const hasSubNumber = tableInfo.some((col: any) => col.name === 'sub_number');
+        if (!hasSubNumber) {
+          await service.run('ALTER TABLE players ADD COLUMN sub_number INTEGER DEFAULT NULL');
+        }
+        const hasNotes = tableInfo.some((col: any) => col.name === 'notes');
+        if (!hasNotes) {
+          await service.run('ALTER TABLE players ADD COLUMN notes TEXT DEFAULT NULL');
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('duplicate column')) {
+          throw err;
+        }
+      }
+    },
+  },
 ];
 
 /**

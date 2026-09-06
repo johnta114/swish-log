@@ -38,6 +38,15 @@ export const HomeScreen: React.FC = () => {
   const activeGames = games.filter((g) => g.status === 'in_progress');
   const finishedGames = games.filter((g) => g.status === 'finished');
 
+  // チーム選択用（マイチームを先頭に配置）
+  const sortedTeamsForSelect = useMemo(() => {
+    return [...teams].sort((a, b) => {
+      if (a.id === myTeamId) return -1;
+      if (b.id === myTeamId) return 1;
+      return 0;
+    });
+  }, [teams, myTeamId]);
+
   // フィルター済み試合履歴
   const filteredFinishedGames = useMemo(() => {
     return finishedGames.filter((game) => {
@@ -355,9 +364,9 @@ export const HomeScreen: React.FC = () => {
                 className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-orange-500 truncate"
               >
                 <option value="all">チームを選択...</option>
-                {teams.map((t) => (
+                {sortedTeamsForSelect.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} {t.id === myTeamId ? '(🛡️マイチーム)' : ''}
+                    {t.shortName}
                   </option>
                 ))}
               </select>

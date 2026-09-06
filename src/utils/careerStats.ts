@@ -129,9 +129,11 @@ export function calculatePlayerCareerStats(
   return {
     playerId,
     currentNumber: player.number,
+    subNumber: player.subNumber,
     name: player.name,
     teamId: player.teamId,
     position: player.position,
+    notes: player.notes,
     grade: player.grade,
     age: player.age,
     numberHistory: player.numberHistory,

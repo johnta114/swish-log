@@ -7,7 +7,7 @@ export class PlayerRepository {
    */
   public async getAll(): Promise<Player[]> {
     const playerRows = await dbService.query<any>(
-      'SELECT id, team_id, number, name, position, grade, age, created_at FROM players ORDER BY number ASC'
+      'SELECT id, team_id, number, sub_number, name, position, grade, notes, age, created_at FROM players ORDER BY number ASC'
     );
 
     const historyRows = await dbService.query<any>(
@@ -29,9 +29,11 @@ export class PlayerRepository {
       id: r.id,
       teamId: r.team_id,
       number: Number(r.number),
+      subNumber: r.sub_number != null ? Number(r.sub_number) : undefined,
       name: r.name,
       position: r.position || undefined,
       grade: r.grade || undefined,
+      notes: r.notes || undefined,
       age: r.age != null ? Number(r.age) : undefined,
       numberHistory: historyMap.get(r.id) || [],
       createdAt: Number(r.created_at),
@@ -43,15 +45,17 @@ export class PlayerRepository {
    */
   public async save(player: Player): Promise<void> {
     await dbService.run(
-      `INSERT OR REPLACE INTO players (id, team_id, number, name, position, grade, age, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO players (id, team_id, number, sub_number, name, position, grade, notes, age, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         player.id,
         player.teamId,
         player.number,
+        player.subNumber != null ? player.subNumber : null,
         player.name,
         player.position || null,
         player.grade || null,
+        player.notes || null,
         player.age != null ? player.age : null,
         player.createdAt,
       ]

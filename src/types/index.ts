@@ -115,10 +115,12 @@ export interface PlayerNumberHistory {
 export interface Player {
   id: string;
   teamId: string;
-  number: number;
+  number: number; // ユニフォーム背番号（メイン）
+  subNumber?: number; // リバーシブル背番号（サブ・任意）
   name: string;
-  position?: string;
-  grade?: string;
+  position?: string; // 任意（未選択可能）
+  notes?: string; // 備考（旧学年欄を置き換え・任意）
+  grade?: string; // 互換性維持用
   age?: number; // 年齢（任意）
   numberHistory?: PlayerNumberHistory[];
   createdAt: number;
@@ -250,9 +252,11 @@ export interface PlayerGameLog {
 export interface PlayerCareerStats {
   playerId: string;
   currentNumber: number;
+  subNumber?: number;
   name: string;
   teamId: string;
   position?: string;
+  notes?: string;
   grade?: string;
   age?: number;
   numberHistory?: PlayerNumberHistory[];

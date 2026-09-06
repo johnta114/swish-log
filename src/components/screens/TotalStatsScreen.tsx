@@ -6,7 +6,6 @@ import { CourtCanvas } from '../common/CourtCanvas';
 import type { PlayerCareerStats } from '../../types';
 import {
   Trophy,
-  Shield,
   Users,
   Target,
   ArrowUpDown,
@@ -84,15 +83,23 @@ export const TotalStatsScreen: React.FC = () => {
     );
   }
 
+  // チーム選択用（マイチームを先頭に配置）
+  const sortedTeams = useMemo(() => {
+    return [...teams].sort((a, b) => {
+      if (a.id === myTeamId) return -1;
+      if (b.id === myTeamId) return 1;
+      return 0;
+    });
+  }, [teams, myTeamId]);
+
   return (
-    <div className="space-y-4 pb-16">
-      {/* チーム切り替えピル & 通算CSVボタン */}
+    <div className="space-y-4 pb-20">
+      {/* チーム切り替えバー & 通算CSVエクスポート（上部をすっきり統合） */}
       <div className="flex items-center justify-between gap-2 pt-1">
-        {teams.length > 1 ? (
+        {sortedTeams.length > 1 ? (
           <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
-            {teams.map((t) => {
+            {sortedTeams.map((t) => {
               const isSelected = t.id === selectedTeamId;
-              const isTMyTeam = t.id === myTeamId;
 
               return (
                 <button
@@ -108,8 +115,7 @@ export const TotalStatsScreen: React.FC = () => {
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: t.color }}
                   />
-                  <span>{t.name}</span>
-                  {isTMyTeam && <Shield className="w-2.5 h-2.5 text-orange-400" />}
+                  <span>{t.shortName}</span>
                 </button>
               );
             })}
@@ -269,9 +275,16 @@ export const TotalStatsScreen: React.FC = () => {
                     </span>
 
                     {/* 背番号バッジ */}
-                    <span className="font-mono font-black text-sm text-white bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-lg shrink-0">
-                      #{p.currentNumber}
-                    </span>
+                    <div className="flex flex-col items-center shrink-0">
+                      <span className="font-mono font-black text-sm text-white bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-lg">
+                        #{p.currentNumber}
+                      </span>
+                      {p.subNumber != null && (
+                        <span className="text-[8px] font-mono text-slate-400 mt-0.5">
+                          Rev:#{p.subNumber}
+                        </span>
+                      )}
+                    </div>
 
                     <div className="min-w-0">
                       <div className="flex items-center space-x-1.5 truncate">
@@ -281,15 +294,16 @@ export const TotalStatsScreen: React.FC = () => {
                             ({p.position})
                           </span>
                         )}
-                        {p.age !== undefined && !isNaN(p.age) ? (
+                        {p.age !== undefined && !isNaN(p.age) && (
                           <span className="text-[9px] bg-sky-950/70 text-sky-300 border border-sky-800/60 px-1.5 py-0.5 rounded shrink-0 font-medium">
                             {p.age}歳
                           </span>
-                        ) : p.grade ? (
-                          <span className="text-[9px] bg-slate-700 text-slate-300 px-1 py-0.2 rounded shrink-0">
-                            {p.grade}
+                        )}
+                        {p.notes && (
+                          <span className="text-[9px] bg-slate-800 text-slate-300 border border-slate-700 px-1.5 py-0.5 rounded shrink-0">
+                            {p.notes}
                           </span>
-                        ) : null}
+                        )}
                       </div>
 
                       {/* 過去の背番号履歴 */}
@@ -370,20 +384,32 @@ export const TotalStatsScreen: React.FC = () => {
             {/* モーダルヘッダー */}
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center space-x-2.5">
-                <span className="font-mono font-black text-base text-white bg-orange-600 px-2.5 py-1 rounded-xl shadow">
-                  #{selectedPlayerStats.currentNumber}
-                </span>
+                <div className="flex flex-col items-center shrink-0">
+                  <span className="font-mono font-black text-base text-white bg-orange-600 px-2.5 py-1 rounded-xl shadow">
+                    #{selectedPlayerStats.currentNumber}
+                  </span>
+                  {selectedPlayerStats.subNumber != null && (
+                    <span className="text-[9px] font-mono text-slate-300 mt-0.5">
+                      Rev:#{selectedPlayerStats.subNumber}
+                    </span>
+                  )}
+                </div>
                 <div>
-                  <h3 className="text-sm font-black text-white flex items-center space-x-1.5">
+                  <h3 className="text-sm font-black text-white flex items-center space-x-1.5 flex-wrap">
                     <span>{selectedPlayerStats.name}</span>
                     {selectedPlayerStats.position && (
                       <span className="text-xs text-slate-400 font-semibold">
                         ({selectedPlayerStats.position})
                       </span>
                     )}
-                    {selectedPlayerStats.grade && (
+                    {selectedPlayerStats.age !== undefined && !isNaN(selectedPlayerStats.age) && (
+                      <span className="text-[10px] bg-sky-950/70 border border-sky-800/60 text-sky-300 px-1.5 py-0.2 rounded font-medium">
+                        {selectedPlayerStats.age}歳
+                      </span>
+                    )}
+                    {selectedPlayerStats.notes && (
                       <span className="text-[10px] bg-slate-800 border border-slate-700 text-slate-300 px-1.5 py-0.2 rounded">
-                        {selectedPlayerStats.grade}
+                        {selectedPlayerStats.notes}
                       </span>
                     )}
                   </h3>

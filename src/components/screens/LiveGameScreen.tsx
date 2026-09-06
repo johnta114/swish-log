@@ -75,6 +75,7 @@ export const LiveGameScreen: React.FC = () => {
   // 試合中未登録選手のクイック追加ステート
   const [isAddingNewPlayer, setIsAddingNewPlayer] = useState<boolean>(false);
   const [quickPlayerNumber, setQuickPlayerNumber] = useState<string>('');
+  const [quickPlayerSubNumber, setQuickPlayerSubNumber] = useState<string>('');
   const [quickPlayerName, setQuickPlayerName] = useState<string>('');
   const [quickPlayerError, setQuickPlayerError] = useState<string>('');
 
@@ -381,12 +382,18 @@ export const LiveGameScreen: React.FC = () => {
       setQuickPlayerError('背番号は 0〜99 の数値を入力してください');
       return;
     }
+    const subNum = quickPlayerSubNumber ? parseInt(quickPlayerSubNumber, 10) : undefined;
+    if (quickPlayerSubNumber && (isNaN(subNum!) || subNum! < 0 || subNum! > 99)) {
+      setQuickPlayerError('リバーシブル背番号は 0〜99 の数値を入力してください');
+      return;
+    }
     const name = quickPlayerName.trim() || `選手 #${num}`;
 
     // 1. 選手を登録
     const newP = addPlayer({
       teamId: currentTeam.id,
       number: num,
+      subNumber: subNum,
       name,
     });
 
@@ -402,7 +409,7 @@ export const LiveGameScreen: React.FC = () => {
         : game.awayRosterPlayerIds,
       rosterSnapshots: {
         ...(game.rosterSnapshots || {}),
-        [newP.id]: { number: num, name },
+        [newP.id]: { number: num, name, subNumber: subNum },
       },
     };
     updateGame(updatedGame);
@@ -415,6 +422,7 @@ export const LiveGameScreen: React.FC = () => {
     }
 
     setQuickPlayerNumber('');
+    setQuickPlayerSubNumber('');
     setQuickPlayerName('');
     setQuickPlayerError('');
     setIsAddingNewPlayer(false);
@@ -671,6 +679,11 @@ export const LiveGameScreen: React.FC = () => {
                 }`}
               >
                 <span className="font-mono font-black text-sm">#{p.number}</span>
+                {p.subNumber != null && (
+                  <span className="text-[9px] text-amber-300 font-mono font-medium -ml-0.5" title={`リバーシブル: #${p.subNumber}`}>
+                    ({p.subNumber})
+                  </span>
+                )}
                 <span className="text-[11px] truncate max-w-[42px]">{p.name.split(' ')[0]}</span>
                 {fouls > 0 && (
                   <span
@@ -1038,9 +1051,16 @@ export const LiveGameScreen: React.FC = () => {
                                 #{p.number}
                               </span>
                               <div>
-                                <span className="font-bold text-xs">{p.name}</span>
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="font-bold text-xs">{p.name}</span>
+                                  {p.subNumber != null && (
+                                    <span className="text-[10px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">
+                                      Rev:#{p.subNumber}
+                                    </span>
+                                  )}
+                                </div>
                                 {p.position && (
-                                  <span className="ml-1 text-[10px] text-slate-400">({p.position})</span>
+                                  <span className="text-[10px] text-slate-400">({p.position})</span>
                                 )}
                               </div>
                             </div>
@@ -1105,7 +1125,14 @@ export const LiveGameScreen: React.FC = () => {
                                   #{p.number}
                                 </span>
                                 <div>
-                                  <span className="font-bold text-xs">{p.name}</span>
+                                  <div className="flex items-center space-x-1.5">
+                                    <span className="font-bold text-xs">{p.name}</span>
+                                    {p.subNumber != null && (
+                                      <span className="text-[10px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">
+                                        Rev:#{p.subNumber}
+                                      </span>
+                                    )}
+                                  </div>
                                   {p.position && (
                                     <span className="ml-1 text-[10px] text-slate-400">({p.position})</span>
                                   )}
@@ -1182,6 +1209,11 @@ export const LiveGameScreen: React.FC = () => {
                               ✓
                             </span>
                             <span className="font-mono font-black text-xs">#{p.number}</span>
+                            {p.subNumber != null && (
+                              <span className="text-[10px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">
+                                Rev:#{p.subNumber}
+                              </span>
+                            )}
                             <span className="font-bold text-xs">{p.name}</span>
                           </div>
                           <div className="flex items-center space-x-2 text-[11px] font-mono text-slate-400">
@@ -1229,7 +1261,7 @@ export const LiveGameScreen: React.FC = () => {
                       <p className="text-[11px] text-red-400 font-medium">{quickPlayerError}</p>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                       <div>
                         <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">背番号 *</label>
                         <input
@@ -1239,9 +1271,21 @@ export const LiveGameScreen: React.FC = () => {
                           value={quickPlayerNumber}
                           onChange={(e) => setQuickPlayerNumber(e.target.value)}
                           placeholder="99"
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
                           required
                           autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">リバーシブル</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          value={quickPlayerSubNumber}
+                          onChange={(e) => setQuickPlayerSubNumber(e.target.value)}
+                          placeholder="任意"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
                         />
                       </div>
                       <div className="col-span-2">

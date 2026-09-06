@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { storage } from '../../utils/storage';
+import type { Team } from '../../types';
 import {
   Play,
   ArrowLeft,
@@ -147,6 +148,15 @@ export const NewGameScreen: React.FC = () => {
 
   const homeTeam = teams.find((t) => t.id === homeTeamId);
   const awayTeam = teams.find((t) => t.id === awayTeamId);
+
+  // チーム選択用（マイチームを先頭に配置）
+  const sortedTeamsForSelect: Team[] = useMemo(() => {
+    return [...teams].sort((a, b) => {
+      if (a.id === myTeamId) return -1;
+      if (b.id === myTeamId) return 1;
+      return 0;
+    });
+  }, [teams, myTeamId]);
 
   const homePlayers = players
     .filter((p) => p.teamId === homeTeamId)
@@ -469,9 +479,9 @@ export const NewGameScreen: React.FC = () => {
               onChange={(e) => setHomeTeamId(e.target.value)}
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs font-bold text-white focus:outline-none focus:border-orange-500"
             >
-              {teams.map((t) => (
+              {sortedTeamsForSelect.map((t) => (
                 <option key={t.id} value={t.id} disabled={t.id === awayTeamId}>
-                  {t.id === myTeamId ? `🛡️ ${t.name} (マイチーム)` : t.name}
+                  {t.shortName}
                 </option>
               ))}
             </select>
@@ -502,9 +512,9 @@ export const NewGameScreen: React.FC = () => {
               onChange={(e) => setAwayTeamId(e.target.value)}
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs font-bold text-white focus:outline-none focus:border-orange-500"
             >
-              {teams.map((t) => (
+              {sortedTeamsForSelect.map((t) => (
                 <option key={t.id} value={t.id} disabled={t.id === homeTeamId}>
-                  {t.id === myTeamId ? `🛡️ ${t.name} (マイチーム)` : t.name}
+                  {t.shortName}
                 </option>
               ))}
             </select>
@@ -536,7 +546,7 @@ export const NewGameScreen: React.FC = () => {
                   style={{ backgroundColor: homeTeam?.color }}
                 />
                 <h4 className="text-xs font-bold text-white">
-                  {homeTeam?.name} 出場選手 ({homeRoster.length}/{homePlayers.length})
+                  {homeTeam?.shortName || homeTeam?.name} 出場選手 ({homeRoster.length}/{homePlayers.length})
                 </h4>
               </div>
               <button
@@ -576,6 +586,11 @@ export const NewGameScreen: React.FC = () => {
                           <Square className="w-4 h-4 text-slate-600 shrink-0" />
                         )}
                         <span className="font-mono font-bold">#{p.number}</span>
+                        {p.subNumber != null && (
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            (Rev:#{p.subNumber})
+                          </span>
+                        )}
                         <span className="truncate">{p.name}</span>
                       </div>
                       {isStarter && (
@@ -599,7 +614,7 @@ export const NewGameScreen: React.FC = () => {
                   style={{ backgroundColor: awayTeam?.color }}
                 />
                 <h4 className="text-xs font-bold text-white">
-                  {awayTeam?.name} 出場選手 ({awayRoster.length}/{awayPlayers.length})
+                  {awayTeam?.shortName || awayTeam?.name} 出場選手 ({awayRoster.length}/{awayPlayers.length})
                 </h4>
               </div>
               <button
@@ -639,6 +654,11 @@ export const NewGameScreen: React.FC = () => {
                           <Square className="w-4 h-4 text-slate-600 shrink-0" />
                         )}
                         <span className="font-mono font-bold">#{p.number}</span>
+                        {p.subNumber != null && (
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            (Rev:#{p.subNumber})
+                          </span>
+                        )}
                         <span className="truncate">{p.name}</span>
                       </div>
                       {isStarter && (

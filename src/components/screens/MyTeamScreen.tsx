@@ -32,7 +32,6 @@ const COLOR_PRESETS = [
 
 const LOGO_PRESETS = ['🏀', '🦅', '⚡', '🐯', '🐺', '🦁', '🐉', '👑', '🔥', '🛡️', '⭐', '🚀'];
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
-const GRADE_PRESETS = ['1年', '2年', '3年', '4年', '一般'];
 
 export const MyTeamScreen: React.FC = () => {
   const {
@@ -74,9 +73,10 @@ export const MyTeamScreen: React.FC = () => {
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [playerNumber, setPlayerNumber] = useState('');
+  const [playerSubNumber, setPlayerSubNumber] = useState('');
   const [playerName, setPlayerName] = useState('');
-  const [playerPosition, setPlayerPosition] = useState('PG');
-  const [playerGrade, setPlayerGrade] = useState('');
+  const [playerPosition, setPlayerPosition] = useState('');
+  const [playerNotes, setPlayerNotes] = useState('');
   const [playerAge, setPlayerAge] = useState('');
   const [playerError, setPlayerError] = useState('');
 
@@ -263,22 +263,16 @@ export const MyTeamScreen: React.FC = () => {
     // 2. 選択された選手を新チームの選手として複製・引き継ぎ
     const playersToCarry = myTeamPlayers.filter((p) => carryOverPlayerIds.includes(p.id));
     for (const p of playersToCarry) {
-      // 年齢を1増やす（設定されている場合）
+      // 年齢のみを1増やす（設定されている場合）
       const nextAge = typeof p.age === 'number' && !isNaN(p.age) ? p.age + 1 : undefined;
-
-      // 学年を1つ進める（例: 1年→2年、2年→3年）
-      let nextGrade = p.grade;
-      if (p.grade === '1年') nextGrade = '2年';
-      else if (p.grade === '2年') nextGrade = '3年';
-      else if (p.grade === '3年') nextGrade = '4年';
-      else if (p.grade === '4年') nextGrade = 'OB/OG';
 
       addPlayer({
         teamId: newTeam.id,
         number: p.number,
+        subNumber: p.subNumber,
         name: p.name,
         position: p.position,
-        grade: nextGrade,
+        notes: p.notes,
         age: nextAge,
         numberHistory: p.numberHistory ? [...p.numberHistory] : undefined,
       });
@@ -294,9 +288,10 @@ export const MyTeamScreen: React.FC = () => {
     if (!myTeamId) return;
     setEditingPlayerId(null);
     setPlayerNumber('');
+    setPlayerSubNumber('');
     setPlayerName('');
-    setPlayerPosition('PG');
-    setPlayerGrade('');
+    setPlayerPosition('');
+    setPlayerNotes('');
     setPlayerAge('');
     setPlayerError('');
     setIsPlayerModalOpen(true);
@@ -306,9 +301,10 @@ export const MyTeamScreen: React.FC = () => {
   const handleOpenEditPlayer = (p: Player) => {
     setEditingPlayerId(p.id);
     setPlayerNumber(p.number.toString());
+    setPlayerSubNumber(p.subNumber != null ? p.subNumber.toString() : '');
     setPlayerName(p.name);
-    setPlayerPosition(p.position || 'PG');
-    setPlayerGrade(p.grade || '');
+    setPlayerPosition(p.position || '');
+    setPlayerNotes(p.notes || '');
     setPlayerAge(p.age !== undefined ? p.age.toString() : '');
     setPlayerError('');
     setIsPlayerModalOpen(true);
@@ -321,9 +317,16 @@ export const MyTeamScreen: React.FC = () => {
 
     const numVal = parseInt(playerNumber, 10);
     if (isNaN(numVal) || numVal < 0 || numVal > 99) {
-      setPlayerError('背番号は 0〜99 の数値を入力してください');
+      setPlayerError('ユニフォーム背番号は 0〜99 の数値を入力してください');
       return;
     }
+
+    const subNumVal = playerSubNumber.trim() ? parseInt(playerSubNumber, 10) : undefined;
+    if (playerSubNumber.trim() && (subNumVal === undefined || isNaN(subNumVal) || subNumVal < 0 || subNumVal > 99)) {
+      setPlayerError('リバーシブル背番号は 0〜99 の数値を入力してください');
+      return;
+    }
+
     if (!playerName.trim()) {
       setPlayerError('選手氏名を入力してください');
       return;
@@ -335,7 +338,7 @@ export const MyTeamScreen: React.FC = () => {
       return;
     }
 
-    // 同チーム内の背番号重複チェック
+    // 同チーム内のユニフォーム背番号重複チェック
     const duplicate = myTeamPlayers.find(
       (p) => p.number === numVal && p.id !== editingPlayerId
     );
@@ -350,9 +353,10 @@ export const MyTeamScreen: React.FC = () => {
         updatePlayer({
           ...existing,
           number: numVal,
+          subNumber: subNumVal,
           name: playerName.trim(),
-          position: playerPosition,
-          grade: playerGrade.trim() || undefined,
+          position: playerPosition || undefined,
+          notes: playerNotes.trim() || undefined,
           age: ageVal,
         });
       }
@@ -360,9 +364,10 @@ export const MyTeamScreen: React.FC = () => {
       addPlayer({
         teamId: myTeamId,
         number: numVal,
+        subNumber: subNumVal,
         name: playerName.trim(),
-        position: playerPosition,
-        grade: playerGrade.trim() || undefined,
+        position: playerPosition || undefined,
+        notes: playerNotes.trim() || undefined,
         age: ageVal,
       });
     }
@@ -396,7 +401,7 @@ export const MyTeamScreen: React.FC = () => {
               >
                 {myTeamList.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.seasonYear ? `${t.seasonYear}年度` : t.name}
+                    {t.seasonYear ? `${t.seasonYear}年度 (${t.shortName})` : t.shortName}
                   </option>
                 ))}
               </select>
@@ -454,7 +459,7 @@ export const MyTeamScreen: React.FC = () => {
                   </option>
                   {teams.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.seasonYear ? `[${t.seasonYear}年度] ` : ''}{t.name} ({t.shortName})
+                      {t.seasonYear ? `[${t.seasonYear}年度] ` : ''}{t.shortName}
                     </option>
                   ))}
                 </select>
@@ -589,26 +594,34 @@ export const MyTeamScreen: React.FC = () => {
                     className="bg-slate-800/70 border border-slate-700/60 hover:border-slate-600 rounded-xl p-3 flex items-center justify-between transition group"
                   >
                     <div className="flex items-center space-x-3 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-slate-700/80 border border-slate-600 flex items-center justify-center text-sm font-black text-white shrink-0 font-mono shadow-sm">
-                        #{player.number}
+                      <div className="flex flex-col items-center shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-slate-700/80 border border-slate-600 flex items-center justify-center text-sm font-black text-white font-mono shadow-sm">
+                          #{player.number}
+                        </div>
+                        {player.subNumber != null && (
+                          <span className="text-[8px] font-mono text-slate-400 mt-0.5">
+                            Rev:#{player.subNumber}
+                          </span>
+                        )}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-bold text-white truncate">{player.name}</span>
                           {player.position && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-medium">
                               {player.position}
                             </span>
                           )}
-                          {player.age !== undefined && !isNaN(player.age) ? (
+                          {player.age !== undefined && !isNaN(player.age) && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-300 border border-sky-800/50 font-medium">
                               {player.age}歳
                             </span>
-                          ) : player.grade ? (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-300 border border-sky-800/50">
-                              {player.grade}
+                          )}
+                          {player.notes && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+                              {player.notes}
                             </span>
-                          ) : null}
+                          )}
                         </div>
 
                         {/* 旧背番号履歴 */}
@@ -928,6 +941,11 @@ export const MyTeamScreen: React.FC = () => {
                             className="rounded border-slate-700 text-orange-500 focus:ring-orange-500"
                           />
                           <span className="font-mono font-bold">#{p.number}</span>
+                          {p.subNumber != null && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              (Rev:#{p.subNumber})
+                            </span>
+                          )}
                           <span>{p.name}</span>
                         </div>
                         <div className="text-right">
@@ -936,9 +954,9 @@ export const MyTeamScreen: React.FC = () => {
                               現在: {p.age}歳 → 新年度: {p.age + 1}歳
                             </span>
                           )}
-                          {p.grade && (
-                            <span className="text-[9px] text-slate-500">
-                              学年: {p.grade}
+                          {p.notes && (
+                            <span className="text-[9px] text-slate-500 block">
+                              備考: {p.notes}
                             </span>
                           )}
                         </div>
@@ -947,7 +965,7 @@ export const MyTeamScreen: React.FC = () => {
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  ※引き継ぎ時、年齢は+1歳加算され、学年も自動的に繰り上がります。
+                  ※引き継ぎ時、年齢は+1歳加算されます。
                 </p>
               </div>
 
@@ -995,9 +1013,11 @@ export const MyTeamScreen: React.FC = () => {
             )}
 
             <form onSubmit={handleSavePlayer} className="space-y-3.5">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">背番号 *</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    背番号 (ユニフォーム) *
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -1009,13 +1029,43 @@ export const MyTeamScreen: React.FC = () => {
                     autoFocus
                   />
                 </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    リバーシブル背番号 (任意)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={playerSubNumber}
+                    onChange={(e) => setPlayerSubNumber(e.target.value)}
+                    placeholder="例: 17"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono text-center placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">ポジション</label>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">選手氏名 *</label>
+                  <input
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="例: 田中 太郎"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    ポジション (任意)
+                  </label>
                   <select
                     value={playerPosition}
                     onChange={(e) => setPlayerPosition(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2 py-2 text-sm text-white focus:outline-none focus:border-orange-500"
                   >
+                    <option value="">指定なし</option>
                     {POSITIONS.map((pos) => (
                       <option key={pos} value={pos}>
                         {pos}
@@ -1025,62 +1075,36 @@ export const MyTeamScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">選手氏名 *</label>
-                <input
-                  type="text"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="例: 田中 太郎"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  年齢 (任意)
-                </label>
-                <div className="relative">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    年齢 (任意)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={playerAge}
+                      onChange={(e) => setPlayerAge(e.target.value)}
+                      placeholder="例: 17"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 font-mono focus:outline-none focus:border-orange-500"
+                    />
+                    <span className="absolute right-2 top-2.5 text-xs text-slate-400">歳</span>
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    備考 (任意)
+                  </label>
                   <input
-                    type="number"
-                    min="1"
-                    max="99"
-                    value={playerAge}
-                    onChange={(e) => setPlayerAge(e.target.value)}
-                    placeholder="例: 17"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 font-mono focus:outline-none focus:border-orange-500"
+                    type="text"
+                    value={playerNotes}
+                    onChange={(e) => setPlayerNotes(e.target.value)}
+                    placeholder="例: キャプテン、怪我療養中 など"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">歳</span>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  学年 / カテゴリ (任意)
-                </label>
-                <div className="flex gap-1.5 mb-1.5 flex-wrap">
-                  {GRADE_PRESETS.map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setPlayerGrade(g)}
-                      className={`text-[11px] px-2 py-1 rounded-lg border transition ${
-                        playerGrade === g
-                          ? 'bg-sky-500 text-white border-sky-400 font-semibold'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={playerGrade}
-                  onChange={(e) => setPlayerGrade(e.target.value)}
-                  placeholder="直接入力も可能（例: 2年、主将、社会人）"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
-                />
               </div>
 
               {/* 背番号変更時の履歴プレビュー */}
