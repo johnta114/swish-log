@@ -13,15 +13,18 @@
     "cap:open:android": "cap open android"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "^8.1.1",
     "@capacitor/android": "^8.5.1",
     "@capacitor/core": "^8.5.1",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.5.1",
     "@capacitor/status-bar": "^8.0.3",
     "clsx": "^2.1.1",
+    "jeep-sqlite": "^2.8.0",
     "lucide-react": "^1.41.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "sql.js": "^1.11.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

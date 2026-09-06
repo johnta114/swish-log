@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import type { Team, Player, Game, StatEvent, Quarter, ActionType, ShotLocation, SingleGameSharePackage } from '../types';
-import { storage } from '../utils/storage';
+import { storage, INITIAL_TEAMS, INITIAL_PLAYERS } from '../utils/storage';
 import { executeGameImport } from '../utils/gameShare';
+import { dbService } from '../db/sqliteService';
+import { checkAndMigrateData } from '../db/dataMigration';
+import { teamRepository } from '../db/repositories/teamRepository';
+import { playerRepository } from '../db/repositories/playerRepository';
+import { gameRepository } from '../db/repositories/gameRepository';
+import { settingsRepository } from '../db/repositories/settingsRepository';
 
 export type ScreenType =
   | 'home'
@@ -14,6 +20,9 @@ export type ScreenType =
   | 'stats_view';
 
 interface AppContextType {
+  // DB状態
+  isDbReady: boolean;
+
   // 画面管理
   currentScreen: ScreenType;
   screenParams: Record<string, any>;
@@ -110,14 +119,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return {};
   });
 
+  const [isDbReady, setIsDbReady] = useState<boolean>(false);
   const [teams, setTeams] = useState<Team[]>(() => storage.getTeams());
   const [players, setPlayers] = useState<Player[]>(() => storage.getPlayers());
   const [games, setGames] = useState<Game[]>(() => storage.getGames());
   const [myTeamId, setMyTeamIdState] = useState<string | null>(() => storage.getMyTeamId());
 
+  // 初回マウント時に SQLite DB の初期化と既存データのマイグレーションを実行
+  useEffect(() => {
+    let isMounted = true;
+    const initDb = async () => {
+      try {
+        await dbService.initialize();
+        await checkAndMigrateData();
+        const [dbTeams, dbPlayers, dbGames, dbMyTeamId] = await Promise.all([
+          teamRepository.getAll(),
+          playerRepository.getAll(),
+          gameRepository.getAll(),
+          settingsRepository.get('my_team_id', ''),
+        ]);
+
+        if (isMounted) {
+          if (dbTeams.length > 0) setTeams(dbTeams);
+          if (dbPlayers.length > 0) setPlayers(dbPlayers);
+          if (dbGames.length > 0) setGames(dbGames);
+          if (dbMyTeamId) setMyTeamIdState(dbMyTeamId);
+          setIsDbReady(true);
+        }
+      } catch (err) {
+        console.error('Failed to initialize SQLite, falling back to storage:', err);
+        if (isMounted) setIsDbReady(true);
+      }
+    };
+
+    initDb();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const setMyTeamId = (teamId: string | null) => {
     setMyTeamIdState(teamId);
     storage.saveMyTeamId(teamId);
+    if (teamId) {
+      teamRepository.setMyTeam(teamId).catch(console.error);
+      settingsRepository.set('my_team_id', teamId).catch(console.error);
+    }
     setTeams((prev) =>
       prev.map((t) => ({
         ...t,
@@ -128,19 +175,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const myTeam = useMemo(() => teams.find((t) => t.id === myTeamId), [teams, myTeamId]);
 
-
-  // ストレージ同期
+  // ストレージ & SQLite 同期
   useEffect(() => {
     storage.saveTeams(teams);
-  }, [teams]);
+    if (isDbReady) {
+      teamRepository.saveAll(teams).catch(console.error);
+    }
+  }, [teams, isDbReady]);
 
   useEffect(() => {
     storage.savePlayers(players);
-  }, [players]);
+    if (isDbReady) {
+      playerRepository.saveAll(players).catch(console.error);
+    }
+  }, [players, isDbReady]);
 
   useEffect(() => {
     storage.saveGames(games);
-  }, [games]);
+    if (isDbReady) {
+      gameRepository.saveAll(games).catch(console.error);
+    }
+  }, [games, isDbReady]);
 
   const navigateTo = (screen: ScreenType, params: Record<string, any> = {}) => {
     setCurrentScreen(screen);
@@ -177,6 +232,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteTeam = (teamId: string) => {
     setTeams((prev) => prev.filter((t) => t.id !== teamId));
     setPlayers((prev) => prev.filter((p) => p.teamId !== teamId));
+    teamRepository.delete(teamId).catch(console.error);
     if (myTeamId === teamId) {
       setMyTeamId(null);
     }
@@ -203,7 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           newHistory.push({
             number: p.number,
             changedAt: Date.now(),
-            note: `背番号変更（#${p.number} → #${updated.number}）`,
+            note: `${new Date().getFullYear()}年度変更`,
           });
         }
         return {
@@ -216,6 +272,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deletePlayer = (playerId: string) => {
     setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    playerRepository.delete(playerId).catch(console.error);
   };
 
   // 試合操作
@@ -290,6 +347,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteGame = (gameId: string) => {
     setGames((prev) => prev.filter((g) => g.id !== gameId));
+    gameRepository.delete(gameId).catch(console.error);
   };
 
   const finishGame = (gameId: string) => {
@@ -432,6 +490,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPlayers(storage.getPlayers());
     setGames(storage.getGames());
     setMyTeamIdState(storage.getMyTeamId());
+    // SQLite側も初期データでリセット
+    teamRepository.saveAll(INITIAL_TEAMS).catch(console.error);
+    playerRepository.saveAll(INITIAL_PLAYERS).catch(console.error);
+    gameRepository.saveAll([]).catch(console.error);
+    settingsRepository.set('my_team_id', 'team_red').catch(console.error);
     navigateTo('home');
   };
 
@@ -443,11 +506,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     storage.saveGames(result.updatedGames);
     storage.saveTeams(result.updatedTeams);
     storage.savePlayers(result.updatedPlayers);
+    if (isDbReady) {
+      gameRepository.saveAll(result.updatedGames).catch(console.error);
+      teamRepository.saveAll(result.updatedTeams).catch(console.error);
+      playerRepository.saveAll(result.updatedPlayers).catch(console.error);
+    }
     return result.importedGameId;
   };
 
   const contextValue = useMemo(
     () => ({
+      isDbReady,
       currentScreen,
       screenParams,
       navigateTo,
@@ -480,7 +549,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       resetData,
       importGame,
     }),
-    [currentScreen, screenParams, teams, players, games, myTeamId, myTeam]
+    [isDbReady, currentScreen, screenParams, teams, players, games, myTeamId, myTeam]
   );
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
