@@ -6,8 +6,9 @@ import {
 } from '@capacitor-community/sqlite';
 import { defineCustomElements as jeepSqlite } from 'jeep-sqlite/loader';
 import { DB_NAME, DB_VERSION, CREATE_TABLES_SQL } from './schema';
+import { runMigrations } from './migrations';
 
-class SQLiteService {
+export class SQLiteService {
   private static instance: SQLiteService;
   private sqliteConnection: SQLiteConnection | null = null;
   private db: SQLiteDBConnection | null = null;
@@ -61,6 +62,20 @@ class SQLiteService {
 
       // テーブル作成 (DDL)
       await this.db.execute(CREATE_TABLES_SQL);
+
+      // スキーママイグレーションの実行（アプリアップデート時の安全な差分適用）
+      await runMigrations(this);
+
+      // データベース健全性チェック (integrity_check)
+      try {
+        const integrity = await this.db.query('PRAGMA integrity_check');
+        const integrityResult = integrity.values?.[0]?.integrity_check;
+        if (integrityResult && integrityResult !== 'ok') {
+          console.warn('⚠️ SQLite integrity check warning:', integrityResult);
+        }
+      } catch (e) {
+        console.warn('⚠️ integrity_check failed to run:', e);
+      }
 
       // Web環境の場合、ストアへ保存
       if (this.isWeb) {

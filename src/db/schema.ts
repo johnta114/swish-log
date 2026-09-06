@@ -1,7 +1,20 @@
 export const DB_NAME = 'swish_log_db';
 export const DB_VERSION = 1;
 
+/**
+ * 現在のアプリが要求する最新スキーマバージョン
+ * スキーマ変更を行うたびにインクリメントし、migrations.ts にマイグレーションを追加すること
+ */
+export const CURRENT_SCHEMA_VERSION = 1;
+
 export const CREATE_TABLES_SQL = `
+-- スキーママイグレーション履歴テーブル（アップデート時のデータ保護用）
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  applied_at INTEGER NOT NULL
+);
+
 -- チームテーブル
 CREATE TABLE IF NOT EXISTS teams (
   id TEXT PRIMARY KEY,

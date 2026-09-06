@@ -9,12 +9,11 @@ const MIGRATION_DONE_KEY = 'sqlite_migration_completed_v1';
 
 export async function checkAndMigrateData(): Promise<void> {
   try {
-    // すでにSQLite側で移行済みかチェック
+    // すでにSQLite側で移行済みかチェック（一度移行完了していれば二度とサンプルデータ投入は行わない）
     const isMigrated = await settingsRepository.get(MIGRATION_DONE_KEY, '');
-    const currentTeams = await teamRepository.getAll();
 
-    if (isMigrated === 'true' && currentTeams.length > 0) {
-      console.log('✅ SQLite database is up to date.');
+    if (isMigrated === 'true') {
+      console.log('✅ SQLite database is up to date. (Skipping localStorage migration)');
       return;
     }
 
