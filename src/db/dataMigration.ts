@@ -55,7 +55,7 @@ export async function checkAndMigrateData(): Promise<void> {
     const finalTeams = lsTeams.length > 0 ? lsTeams : INITIAL_TEAMS;
     const finalPlayers = lsPlayers.length > 0 ? lsPlayers : INITIAL_PLAYERS;
     const finalGames = lsGames;
-    const finalMyTeamId = lsMyTeamId || 'team_red';
+    const finalMyTeamId = lsMyTeamId || null;
 
     console.log(`📦 Migrating ${finalTeams.length} teams, ${finalPlayers.length} players, ${finalGames.length} games to SQLite...`);
 
@@ -67,6 +67,8 @@ export async function checkAndMigrateData(): Promise<void> {
 
     if (finalMyTeamId) {
       await settingsRepository.set('my_team_id', finalMyTeamId);
+    } else {
+      await settingsRepository.delete('my_team_id');
     }
     if (lsVenueHistory.length > 0) {
       await settingsRepository.setJson('venue_history', lsVenueHistory);

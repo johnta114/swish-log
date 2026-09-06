@@ -143,7 +143,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (dbTeams.length > 0) setTeams(dbTeams);
           if (dbPlayers.length > 0) setPlayers(dbPlayers);
           if (dbGames.length > 0) setGames(dbGames);
-          if (dbMyTeamId) setMyTeamIdState(dbMyTeamId);
+          if (dbMyTeamId) {
+            setMyTeamIdState(dbMyTeamId);
+          } else {
+            setMyTeamIdState(null);
+          }
           setIsDbReady(true);
         }
       } catch (err) {
@@ -161,9 +165,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const setMyTeamId = (teamId: string | null) => {
     setMyTeamIdState(teamId);
     storage.saveMyTeamId(teamId);
+    teamRepository.setMyTeam(teamId).catch(console.error);
     if (teamId) {
-      teamRepository.setMyTeam(teamId).catch(console.error);
       settingsRepository.set('my_team_id', teamId).catch(console.error);
+    } else {
+      settingsRepository.delete('my_team_id').catch(console.error);
     }
     setTeams((prev) =>
       prev.map((t) => ({

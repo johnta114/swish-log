@@ -44,6 +44,13 @@ export class SettingsRepository {
   public async setJson(key: string, value: any): Promise<void> {
     await this.set(key, JSON.stringify(value));
   }
+
+  /**
+   * 設定値を削除
+   */
+  public async delete(key: string): Promise<void> {
+    await dbService.run('DELETE FROM app_settings WHERE key = ?', [key]);
+  }
 }
 
 export const settingsRepository = new SettingsRepository();

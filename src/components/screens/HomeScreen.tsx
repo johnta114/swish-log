@@ -107,39 +107,15 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* ヒーローバナー & クイックアクション */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-950 border border-slate-700/80 rounded-2xl p-4 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute -right-6 -bottom-6 w-36 h-36 bg-sky-500/15 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative z-10 flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[11px] font-semibold backdrop-blur-sm mb-1.5">
-              <span>swish log - バスケ スタッツ管理</span>
-            </div>
-            <h2 className="text-lg font-black tracking-tight leading-tight">
-              リアルタイムに<br />スタッツを記録・分析
-            </h2>
-            <p className="text-[11px] text-slate-300 mt-1 leading-snug">
-              親指ワンタップでシュート位置・得点を逃さず記録。
-            </p>
-          </div>
-          <div className="shrink-0">
-            <img
-              src="/swish-icon-192.png"
-              alt="swish log"
-              className="w-14 h-14 rounded-2xl shadow-lg border border-sky-400/30 object-cover"
-            />
-          </div>
-        </div>
-
-        <div className="mt-3.5 relative z-10">
-          <button
-            onClick={() => navigateTo('new_game')}
-            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 active:scale-[0.98] text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md shadow-orange-950/40 transition"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>新しい試合を開始</span>
-          </button>
-        </div>
+      {/* 新規試合開始ボタン */}
+      <div>
+        <button
+          onClick={() => navigateTo('new_game')}
+          className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 active:scale-[0.98] text-white font-bold py-3 px-4 rounded-2xl text-sm flex items-center justify-center space-x-2 shadow-lg shadow-orange-950/40 transition"
+        >
+          <PlusCircle className="w-5 h-5" />
+          <span>新しい試合を開始</span>
+        </button>
       </div>
 
       {/* 進行中の試合セクション */}

@@ -48,12 +48,24 @@ export const MyTeamScreen: React.FC = () => {
     navigateTo,
   } = useApp();
 
+  // マイチーム候補一覧（isMyTeam が true の全チーム、または現在の myTeam）
+  const myTeamList = useMemo(() => {
+    return teams.filter((t) => t.isMyTeam || t.id === myTeamId);
+  }, [teams, myTeamId]);
+
   // チーム編集モーダル状態
   const [isEditingTeam, setIsEditingTeam] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [teamShortName, setTeamShortName] = useState('');
   const [teamColor, setTeamColor] = useState('#3b82f6');
+  const [teamYear, setTeamYear] = useState<number>(new Date().getFullYear());
   const [teamError, setTeamError] = useState('');
+
+  // 新年度チーム引き継ぎ作成モーダル状態
+  const [isNewSeasonModalOpen, setIsNewSeasonModalOpen] = useState(false);
+  const [newSeasonYear, setNewSeasonYear] = useState<number>(new Date().getFullYear() + 1);
+  const [carryOverPlayerIds, setCarryOverPlayerIds] = useState<string[]>([]);
+  const [newSeasonError, setNewSeasonError] = useState('');
 
   // 選手追加・編集モーダル状態
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
@@ -119,13 +131,23 @@ export const MyTeamScreen: React.FC = () => {
       setTeamName(myTeam.name);
       setTeamShortName(myTeam.shortName);
       setTeamColor(myTeam.color);
+      setTeamYear(myTeam.seasonYear || new Date().getFullYear());
     } else {
       setTeamName('');
       setTeamShortName('');
       setTeamColor('#3b82f6');
+      setTeamYear(new Date().getFullYear());
     }
     setTeamError('');
     setIsEditingTeam(true);
+  };
+
+  // マイチーム解除
+  const handleUnsetMyTeam = () => {
+    if (window.confirm('マイチームの設定を解除しますか？\n（登録データは対戦チーム一覧に残ります）')) {
+      setMyTeamId(null);
+      setIsEditingTeam(false);
+    }
   };
 
   // チーム保存
@@ -142,6 +164,7 @@ export const MyTeamScreen: React.FC = () => {
         name: teamName.trim(),
         shortName: teamShortName.trim() || teamName.trim().slice(0, 4).toUpperCase(),
         color: teamColor,
+        seasonYear: teamYear,
         isMyTeam: true,
       });
     } else {
@@ -149,12 +172,68 @@ export const MyTeamScreen: React.FC = () => {
         name: teamName.trim(),
         shortName: teamShortName.trim() || teamName.trim().slice(0, 4).toUpperCase(),
         color: teamColor,
+        seasonYear: teamYear,
         isMyTeam: true,
       });
       setMyTeamId(newTeam.id);
     }
 
     setIsEditingTeam(false);
+  };
+
+  // 新年度チーム作成モーダル開始
+  const handleOpenNewSeason = () => {
+    if (!myTeam) return;
+    const nextYear = (myTeam.seasonYear || new Date().getFullYear()) + 1;
+    setNewSeasonYear(nextYear);
+    // 現在の所属選手全員をデフォルト選択
+    setCarryOverPlayerIds(myTeamPlayers.map((p) => p.id));
+    setNewSeasonError('');
+    setIsNewSeasonModalOpen(true);
+  };
+
+  // 新年度チーム作成実行（選手引き継ぎ）
+  const handleCreateNewSeasonTeam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!myTeam) return;
+
+    if (!newSeasonYear || isNaN(newSeasonYear)) {
+      setNewSeasonError('年度を正しく入力してください');
+      return;
+    }
+
+    // 1. 新年度チームを作成
+    const newTeam = addTeam({
+      name: myTeam.name,
+      shortName: myTeam.shortName,
+      color: myTeam.color,
+      seasonYear: newSeasonYear,
+      isMyTeam: true,
+    });
+
+    // 2. 選択された選手を新チームの選手として複製・引き継ぎ
+    const playersToCarry = myTeamPlayers.filter((p) => carryOverPlayerIds.includes(p.id));
+    for (const p of playersToCarry) {
+      // 学年を1つ進める（例: 1年→2年、2年→3年）
+      let nextGrade = p.grade;
+      if (p.grade === '1年') nextGrade = '2年';
+      else if (p.grade === '2年') nextGrade = '3年';
+      else if (p.grade === '3年') nextGrade = '4年';
+      else if (p.grade === '4年') nextGrade = 'OB/OG';
+
+      addPlayer({
+        teamId: newTeam.id,
+        number: p.number,
+        name: p.name,
+        position: p.position,
+        grade: nextGrade,
+        numberHistory: p.numberHistory ? [...p.numberHistory] : undefined,
+      });
+    }
+
+    // 3. 新年度チームをアクティブなマイチームに指定
+    setMyTeamId(newTeam.id);
+    setIsNewSeasonModalOpen(false);
   };
 
   // 選手追加開始
@@ -243,7 +322,7 @@ export const MyTeamScreen: React.FC = () => {
   return (
     <div className="space-y-6 pb-20">
       {/* 画面ヘッダー */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center space-x-2">
           <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
             <Shield className="w-5 h-5" />
@@ -260,13 +339,38 @@ export const MyTeamScreen: React.FC = () => {
         </div>
 
         {myTeam && (
-          <button
-            onClick={handleOpenTeamEdit}
-            className="flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition"
-          >
-            <Edit2 className="w-3.5 h-3.5 text-slate-400" />
-            <span>チーム設定</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {myTeamList.length > 1 && (
+              <select
+                value={myTeam.id}
+                onChange={(e) => setMyTeamId(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-xs text-orange-400 font-bold rounded-lg px-2.5 py-1.5 focus:outline-none"
+              >
+                {myTeamList.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.seasonYear ? `${t.seasonYear}年度` : t.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              onClick={handleOpenNewSeason}
+              className="flex items-center space-x-1 text-xs bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 px-2.5 py-1.5 rounded-lg transition font-semibold"
+              title="前年度の所属選手を引き継いで新年度チームを作成"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>新年度チーム</span>
+            </button>
+
+            <button
+              onClick={handleOpenTeamEdit}
+              className="flex items-center space-x-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+              <span>設定</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -300,7 +404,7 @@ export const MyTeamScreen: React.FC = () => {
                   </option>
                   {teams.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} ({t.shortName})
+                      {t.seasonYear ? `[${t.seasonYear}年度] ` : ''}{t.name} ({t.shortName})
                     </option>
                   ))}
                 </select>
@@ -339,8 +443,13 @@ export const MyTeamScreen: React.FC = () => {
                   {myTeam.shortName}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-xl font-black text-white">{myTeam.name}</h3>
+                    {myTeam.seasonYear && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-300 font-bold border border-orange-500/40">
+                        {myTeam.seasonYear}年度
+                      </span>
+                    )}
                     <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-slate-300 font-mono">
                       {myTeam.shortName}
                     </span>
@@ -507,18 +616,35 @@ export const MyTeamScreen: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">
-                  略称 (2〜4文字)
-                </label>
-                <input
-                  type="text"
-                  maxLength={4}
-                  value={teamShortName}
-                  onChange={(e) => setTeamShortName(e.target.value)}
-                  placeholder="例: AYM、SBH"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 uppercase font-mono focus:outline-none focus:border-orange-500"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    略称 (2〜4文字)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={teamShortName}
+                    onChange={(e) => setTeamShortName(e.target.value)}
+                    placeholder="例: AYM、SBH"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 uppercase font-mono focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">
+                    活動年度 (年)
+                  </label>
+                  <input
+                    type="number"
+                    min="2000"
+                    max="2100"
+                    value={teamYear}
+                    onChange={(e) => setTeamYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
+                    placeholder="2026"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -544,10 +670,146 @@ export const MyTeamScreen: React.FC = () => {
                 </div>
               </div>
 
+              <div className="pt-2 flex items-center justify-between">
+                {myTeam ? (
+                  <button
+                    type="button"
+                    onClick={handleUnsetMyTeam}
+                    className="text-xs text-rose-400 hover:text-rose-300 font-medium py-1.5"
+                  >
+                    マイチーム設定を解除
+                  </button>
+                ) : <div />}
+
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTeam(false)}
+                    className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-xs font-bold rounded-xl bg-orange-600 hover:bg-orange-500 text-white shadow-md active:scale-95 transition"
+                  >
+                    保存する
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 新年度チーム引き継ぎ作成モーダル */}
+      {isNewSeasonModalOpen && myTeam && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-orange-400" />
+                  新年度チームの作成（選手引き継ぎ）
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  「{myTeam.name}」の選手を引き継いで新チームを作成します
+                </p>
+              </div>
+              <button
+                onClick={() => setIsNewSeasonModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {newSeasonError && (
+              <div className="p-2.5 bg-red-950/60 border border-red-800/80 rounded-lg text-xs text-red-300">
+                {newSeasonError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateNewSeasonTeam} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">
+                  新しい活動年度 (年) *
+                </label>
+                <input
+                  type="number"
+                  min="2000"
+                  max="2100"
+                  value={newSeasonYear}
+                  onChange={(e) => setNewSeasonYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-orange-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-300">
+                    引き継ぐ選手を選択 ({carryOverPlayerIds.length}/{myTeamPlayers.length}名)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (carryOverPlayerIds.length === myTeamPlayers.length) {
+                        setCarryOverPlayerIds([]);
+                      } else {
+                        setCarryOverPlayerIds(myTeamPlayers.map((p) => p.id));
+                      }
+                    }}
+                    className="text-[11px] text-orange-400 hover:underline"
+                  >
+                    {carryOverPlayerIds.length === myTeamPlayers.length ? '全解除' : '全選択'}
+                  </button>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto space-y-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800">
+                  {myTeamPlayers.map((p) => {
+                    const isChecked = carryOverPlayerIds.includes(p.id);
+                    return (
+                      <label
+                        key={p.id}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${
+                          isChecked ? 'bg-orange-500/15 text-white' : 'text-slate-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCarryOverPlayerIds((prev) => [...prev, p.id]);
+                              } else {
+                                setCarryOverPlayerIds((prev) => prev.filter((id) => id !== p.id));
+                              }
+                            }}
+                            className="rounded border-slate-700 text-orange-500 focus:ring-orange-500"
+                          />
+                          <span className="font-mono font-bold">#{p.number}</span>
+                          <span>{p.name}</span>
+                        </div>
+                        {p.grade && (
+                          <span className="text-[10px] text-slate-500">
+                            現在: {p.grade}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  ※引き継ぎ時、学年は自動的に+1年（例: 1年→2年、3年→4年）繰り上がります。
+                </p>
+              </div>
+
               <div className="pt-2 flex justify-end space-x-2">
                 <button
                   type="button"
-                  onClick={() => setIsEditingTeam(false)}
+                  onClick={() => setIsNewSeasonModalOpen(false)}
                   className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
                 >
                   キャンセル
@@ -556,7 +818,7 @@ export const MyTeamScreen: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 text-xs font-bold rounded-xl bg-orange-600 hover:bg-orange-500 text-white shadow-md active:scale-95 transition"
                 >
-                  保存する
+                  新年度チームを作成
                 </button>
               </div>
             </form>

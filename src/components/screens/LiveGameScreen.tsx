@@ -20,6 +20,7 @@ import {
   ArrowLeftRight,
   Users,
   Check,
+  Plus,
 } from 'lucide-react';
 
 export const LiveGameScreen: React.FC = () => {
@@ -28,6 +29,8 @@ export const LiveGameScreen: React.FC = () => {
     getGameById,
     teams,
     players,
+    addPlayer,
+    updateGame,
     recordStatEvent,
     undoLastStatEvent,
     deleteStatEvent,
@@ -68,6 +71,12 @@ export const LiveGameScreen: React.FC = () => {
     () => new URLSearchParams(window.location.search).get('batch') === 'true'
   );
   const [batchSelectedIds, setBatchSelectedIds] = useState<string[]>([]);
+
+  // 試合中未登録選手のクイック追加ステート
+  const [isAddingNewPlayer, setIsAddingNewPlayer] = useState<boolean>(false);
+  const [quickPlayerNumber, setQuickPlayerNumber] = useState<string>('');
+  const [quickPlayerName, setQuickPlayerName] = useState<string>('');
+  const [quickPlayerError, setQuickPlayerError] = useState<string>('');
 
   // 直近アクションのトーストフィードバック
   const [lastFeedback, setLastFeedback] = useState<{
@@ -363,6 +372,54 @@ export const LiveGameScreen: React.FC = () => {
     }
   };
 
+  // 試合中未登録選手のクイック追加処理
+  const handleQuickAddPlayer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!game) return;
+    const num = parseInt(quickPlayerNumber, 10);
+    if (isNaN(num) || num < 0 || num > 99) {
+      setQuickPlayerError('背番号は 0〜99 の数値を入力してください');
+      return;
+    }
+    const name = quickPlayerName.trim() || `選手 #${num}`;
+
+    // 1. 選手を登録
+    const newP = addPlayer({
+      teamId: currentTeam.id,
+      number: num,
+      name,
+    });
+
+    // 2. 試合ロスターに追加
+    const isHomeTeam = currentTeam.id === game.homeTeamId;
+    const updatedGame = {
+      ...game,
+      homeRosterPlayerIds: isHomeTeam
+        ? [...game.homeRosterPlayerIds, newP.id]
+        : game.homeRosterPlayerIds,
+      awayRosterPlayerIds: !isHomeTeam
+        ? [...game.awayRosterPlayerIds, newP.id]
+        : game.awayRosterPlayerIds,
+      rosterSnapshots: {
+        ...(game.rosterSnapshots || {}),
+        [newP.id]: { number: num, name },
+      },
+    };
+    updateGame(updatedGame);
+
+    // 3. 交代モーダル内で自動選択
+    if (subBatchMode) {
+      setBatchSelectedIds((prev) => [...prev, newP.id]);
+    } else {
+      setSubInPlayerId(newP.id);
+    }
+
+    setQuickPlayerNumber('');
+    setQuickPlayerName('');
+    setQuickPlayerError('');
+    setIsAddingNewPlayer(false);
+  };
+
   // 直近1件のイベント
   const lastEvent = game.events.length > 0 ? game.events[game.events.length - 1] : null;
   const lastEventPlayer = lastEvent ? players.find((p) => p.id === lastEvent.playerId) : null;
@@ -545,25 +602,58 @@ export const LiveGameScreen: React.FC = () => {
       )}
 
       {/* ========================================================
-          2. チーム切替 & 選手選択バー (横スクロール対応・約48px)
+          2. ハーフコート（flex-1 で画面高さいっぱいに無駄なく収まる）
          ======================================================== */}
-      <div className="shrink-0 px-1.5 py-1 bg-slate-900/90 border-b border-slate-800 flex items-center space-x-1 z-10 w-full">
+      <div className="flex-1 min-h-0 px-2 py-1 flex flex-col justify-center relative overflow-hidden">
+        {/* ガイド & 判定バッジ (コート上部) */}
+        <div className="flex items-center justify-between text-[11px] px-1 pb-1">
+          <span className="text-slate-400 flex items-center space-x-1 text-xs">
+            <span>選択選手:</span>
+            <strong className="text-orange-400 font-bold">
+              #{selectedPlayer?.number} {selectedPlayer?.name}
+            </strong>
+          </span>
+
+          <span
+            className={`px-2.5 py-0.5 rounded-full border text-[11px] font-black transition ${zoneInfo.badgeClass}`}
+          >
+            {zoneInfo.label}
+          </span>
+        </div>
+
+        {/* インタラクティブコート */}
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <CourtCanvas
+            interactive={true}
+            selectedLocation={selectedLocation}
+            onLocationSelect={(loc) => setSelectedLocation(loc)}
+            events={game.events}
+            isU12={isU12}
+            className="max-h-[38vh] w-auto h-full"
+          />
+        </div>
+      </div>
+
+      {/* ========================================================
+          3. チーム切替 & 選手選択バー (コート直下・親指の届く位置へ移動！)
+         ======================================================== */}
+      <div className="shrink-0 px-1.5 py-1.5 bg-slate-900/95 border-t border-b border-slate-800 flex items-center space-x-1.5 z-10 w-full shadow-md">
         {/* チーム即時トグルボタン */}
         <button
           onClick={() => setActiveSide(isHome ? 'away' : 'home')}
-          className="shrink-0 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-black flex items-center space-x-1 text-white shadow-sm"
+          className="shrink-0 px-2 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-[11px] font-black flex items-center space-x-1 text-white shadow-sm hover:border-slate-600 active:scale-95 transition"
           title="タップで相手チームに切り替え"
         >
           <span
-            className="w-2 h-2 rounded-full"
+            className="w-2.5 h-2.5 rounded-full"
             style={{ backgroundColor: currentTeam.color }}
           />
-          <span className="truncate max-w-[32px]">{currentTeam.shortName || currentTeam.name}</span>
-          <span className="text-[9px] text-slate-400">⇄</span>
+          <span className="truncate max-w-[40px]">{currentTeam.shortName || currentTeam.name}</span>
+          <span className="text-[10px] text-slate-400">⇄</span>
         </button>
 
-        {/* 出場中選手リスト（コート上の選手のみ表示・min-w-0で交代ボタンを画面外に押し出さない） */}
-        <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar flex items-center space-x-1 py-0.5">
+        {/* 出場中選手リスト（コート上の選手のみ表示・min-w-0で交代ボタンを押し出さない） */}
+        <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar flex items-center space-x-1.5 py-0.5">
           {courtPlayers.map((p) => {
             const isSelected = selectedPlayerId === p.id;
             const box = currentTeamStats.players.find((b) => b.playerId === p.id);
@@ -574,17 +664,17 @@ export const LiveGameScreen: React.FC = () => {
               <button
                 key={p.id}
                 onClick={() => setSelectedPlayerId(p.id)}
-                className={`shrink-0 px-1.5 py-0.5 rounded-lg text-xs font-bold flex items-center space-x-0.5 transition border relative ${
+                className={`shrink-0 px-2 py-1 rounded-xl text-xs font-bold flex items-center space-x-1 transition border relative active:scale-95 ${
                   isSelected
-                    ? 'bg-orange-600 border-orange-400 text-white shadow ring-1 ring-orange-400/50'
-                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                    ? 'bg-orange-600 border-orange-400 text-white shadow-md ring-2 ring-orange-400/50'
+                    : 'bg-slate-850 border-slate-750 text-slate-200 hover:border-slate-600 bg-slate-800'
                 }`}
               >
-                <span className="font-mono font-black">#{p.number}</span>
-                <span className="text-[10px] truncate max-w-[32px]">{p.name.split(' ')[0]}</span>
+                <span className="font-mono font-black text-sm">#{p.number}</span>
+                <span className="text-[11px] truncate max-w-[42px]">{p.name.split(' ')[0]}</span>
                 {fouls > 0 && (
                   <span
-                    className={`text-[7px] px-0.5 rounded font-mono font-bold ${
+                    className={`text-[8px] px-1 rounded font-mono font-bold ${
                       isTrouble ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'
                     }`}
                   >
@@ -605,48 +695,15 @@ export const LiveGameScreen: React.FC = () => {
             setSubBatchMode(false);
             setIsSubModalOpen(true);
           }}
-          className="shrink-0 px-1.5 py-1 rounded-lg bg-sky-950/80 hover:bg-sky-900 border border-sky-500/50 text-sky-300 text-[10px] font-bold flex items-center space-x-0.5 active:scale-95 transition shadow-sm"
+          className="shrink-0 px-2 py-1.5 rounded-xl bg-sky-950/90 hover:bg-sky-900 border border-sky-500/50 text-sky-300 text-[11px] font-bold flex items-center space-x-1 active:scale-95 transition shadow-sm"
           title="選手交代"
         >
-          <ArrowLeftRight className="w-3 h-3 text-sky-400" />
+          <ArrowLeftRight className="w-3.5 h-3.5 text-sky-400" />
           <span>交代</span>
-          <span className="text-[8px] bg-sky-500/30 px-1 py-0.2 rounded font-mono text-sky-200">
+          <span className="text-[9px] bg-sky-500/30 px-1 py-0.2 rounded font-mono text-sky-200">
             {courtPlayers.length}/{rosterPlayers.length}
           </span>
         </button>
-      </div>
-
-      {/* ========================================================
-          3. ハーフコート（flex-1 で画面高さいっぱいに無駄なく収まる）
-         ======================================================== */}
-      <div className="flex-1 min-h-0 px-2 py-1 flex flex-col justify-center relative overflow-hidden">
-        {/* ガイド & 判定バッジ (コート上部) */}
-        <div className="flex items-center justify-between text-[11px] px-1 pb-1">
-          <span className="text-slate-400 flex items-center space-x-1">
-            <span>選手:</span>
-            <strong className="text-orange-400">
-              #{selectedPlayer?.number} {selectedPlayer?.name}
-            </strong>
-          </span>
-
-          <span
-            className={`px-2 py-0.2 rounded-full border text-[10px] font-black transition ${zoneInfo.badgeClass}`}
-          >
-            {zoneInfo.label}
-          </span>
-        </div>
-
-        {/* インタラクティブコート */}
-        <div className="flex-1 min-h-0 flex items-center justify-center">
-          <CourtCanvas
-            interactive={true}
-            selectedLocation={selectedLocation}
-            onLocationSelect={(loc) => setSelectedLocation(loc)}
-            events={game.events}
-            isU12={isU12}
-            className="max-h-[38vh] w-auto h-full"
-          />
-        </div>
       </div>
 
       {/* ========================================================
@@ -1137,6 +1194,88 @@ export const LiveGameScreen: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* 事前登録外の選手クイック追加 */}
+              <div className="pt-2 border-t border-slate-800">
+                {!isAddingNewPlayer ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingNewPlayer(true);
+                      setQuickPlayerError('');
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-dashed border-slate-700 text-xs text-sky-400 font-semibold flex items-center justify-center space-x-1.5 transition active:scale-98"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>事前登録外の選手をその場で追加</span>
+                  </button>
+                ) : (
+                  <div className="bg-slate-950 border border-sky-500/40 rounded-xl p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-sky-300 flex items-center gap-1">
+                        <Plus className="w-3.5 h-3.5 text-sky-400" />
+                        <span>未登録選手の追加（{currentTeam.shortName || currentTeam.name}）</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingNewPlayer(false)}
+                        className="text-slate-400 hover:text-white text-xs p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {quickPlayerError && (
+                      <p className="text-[11px] text-red-400 font-medium">{quickPlayerError}</p>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">背番号 *</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          value={quickPlayerNumber}
+                          onChange={(e) => setQuickPlayerNumber(e.target.value)}
+                          placeholder="99"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
+                          required
+                          autoFocus
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">選手氏名（任意）</label>
+                        <input
+                          type="text"
+                          value={quickPlayerName}
+                          onChange={(e) => setQuickPlayerName(e.target.value)}
+                          placeholder="例: 山本 健太"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingNewPlayer(false)}
+                        className="px-3 py-1 text-xs text-slate-400 hover:text-white"
+                      >
+                        キャンセル
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleQuickAddPlayer}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold rounded-lg text-xs shadow transition flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>追加して交代選択</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* モーダルフッター確定ボタン */}

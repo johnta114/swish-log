@@ -7,7 +7,7 @@ export class TeamRepository {
    */
   public async getAll(): Promise<Team[]> {
     const rows = await dbService.query<any>(
-      'SELECT id, name, short_name, color, is_my_team, created_at FROM teams ORDER BY created_at ASC'
+      'SELECT id, name, short_name, color, is_my_team, season_year, created_at FROM teams ORDER BY created_at ASC'
     );
 
     return rows.map((r) => ({
@@ -16,6 +16,7 @@ export class TeamRepository {
       shortName: r.short_name,
       color: r.color,
       isMyTeam: Boolean(r.is_my_team),
+      seasonYear: r.season_year != null ? Number(r.season_year) : undefined,
       createdAt: Number(r.created_at),
     }));
   }
@@ -25,14 +26,15 @@ export class TeamRepository {
    */
   public async save(team: Team): Promise<void> {
     await dbService.run(
-      `INSERT OR REPLACE INTO teams (id, name, short_name, color, is_my_team, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO teams (id, name, short_name, color, is_my_team, season_year, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         team.id,
         team.name,
         team.shortName,
         team.color,
         team.isMyTeam ? 1 : 0,
+        team.seasonYear != null ? team.seasonYear : null,
         team.createdAt,
       ]
     );
@@ -55,9 +57,9 @@ export class TeamRepository {
   }
 
   /**
-   * マイチームを設定
+   * マイチームを設定（null で解除）
    */
-  public async setMyTeam(myTeamId: string): Promise<void> {
+  public async setMyTeam(myTeamId: string | null): Promise<void> {
     await dbService.run('UPDATE teams SET is_my_team = 0');
     if (myTeamId) {
       await dbService.run('UPDATE teams SET is_my_team = 1 WHERE id = ?', [myTeamId]);

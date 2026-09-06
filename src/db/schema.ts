@@ -5,7 +5,7 @@ export const DB_VERSION = 1;
  * 現在のアプリが要求する最新スキーマバージョン
  * スキーマ変更を行うたびにインクリメントし、migrations.ts にマイグレーションを追加すること
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export const CREATE_TABLES_SQL = `
 -- スキーママイグレーション履歴テーブル（アップデート時のデータ保護用）
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS teams (
   short_name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#ef4444',
   is_my_team INTEGER NOT NULL DEFAULT 0,
+  season_year INTEGER DEFAULT NULL,
   created_at INTEGER NOT NULL
 );
 

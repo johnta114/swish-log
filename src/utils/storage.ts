@@ -16,7 +16,8 @@ export const INITIAL_TEAMS: Team[] = [
     name: 'レッド・ファルコンズ',
     shortName: 'RF',
     color: '#ef4444', // 赤
-    isMyTeam: true,
+    isMyTeam: false,
+    seasonYear: 2026,
     createdAt: Date.now() - 1000000,
   },
   {
@@ -25,6 +26,7 @@ export const INITIAL_TEAMS: Team[] = [
     shortName: 'BT',
     color: '#3b82f6', // 青
     isMyTeam: false,
+    seasonYear: 2026,
     createdAt: Date.now() - 900000,
   },
 ];
@@ -248,19 +250,17 @@ export const storage = {
 
   getMyTeamId(): string | null {
     const val = localStorage.getItem(STORAGE_KEYS.MY_TEAM_ID);
-    if (!val) {
-      // 初期値としてチームRed
-      this.saveMyTeamId('team_red');
-      return 'team_red';
+    if (!val || val === 'null' || val === 'undefined') {
+      return null;
     }
-    return val === 'null' ? null : val;
+    return val;
   },
 
   saveMyTeamId(teamId: string | null): void {
     if (teamId) {
       localStorage.setItem(STORAGE_KEYS.MY_TEAM_ID, teamId);
     } else {
-      localStorage.setItem(STORAGE_KEYS.MY_TEAM_ID, 'null');
+      localStorage.removeItem(STORAGE_KEYS.MY_TEAM_ID);
     }
   },
 
@@ -285,7 +285,7 @@ export const storage = {
     this.saveTeams(INITIAL_TEAMS);
     this.savePlayers(INITIAL_PLAYERS);
     this.saveGames(INITIAL_GAMES);
-    this.saveMyTeamId('team_red');
+    this.saveMyTeamId(null);
     this.setActiveGameId(null);
   },
 };

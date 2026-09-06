@@ -24,18 +24,24 @@ export const MIGRATIONS: Migration[] = [
       // ここでは v1 のマーカーとして記録
     },
   },
-  /* 
-  今後の機能拡張例（v2以降）:
   {
     version: 2,
-    name: 'add_player_height_and_notes',
+    name: 'add_team_season_year',
     up: async (service: SQLiteService) => {
-      // 既存のユーザーデータを保持したままカラムを追加する例
-      await service.run('ALTER TABLE players ADD COLUMN height REAL DEFAULT NULL');
-      await service.run('ALTER TABLE players ADD COLUMN memo TEXT DEFAULT NULL');
+      // 既存カラムの存在チェック（二重追加エラー防止）
+      try {
+        const tableInfo = await service.query<any>('PRAGMA table_info(teams)');
+        const hasColumn = tableInfo.some((col: any) => col.name === 'season_year');
+        if (!hasColumn) {
+          await service.run('ALTER TABLE teams ADD COLUMN season_year INTEGER DEFAULT NULL');
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('duplicate column')) {
+          throw err;
+        }
+      }
     },
   },
-  */
 ];
 
 /**

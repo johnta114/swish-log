@@ -102,6 +102,7 @@ export interface Team {
   color: string;
   createdAt: number;
   isMyTeam?: boolean;
+  seasonYear?: number; // 年度（例: 2026）
 }
 
 export interface PlayerNumberHistory {
