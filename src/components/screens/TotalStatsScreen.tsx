@@ -7,7 +7,7 @@ import type { PlayerCareerStats } from '../../types';
 import {
   BarChart2,
   Trophy,
-  Star,
+  Shield,
   Users,
   Target,
   ArrowUpDown,
@@ -98,8 +98,8 @@ export const TotalStatsScreen: React.FC = () => {
             <h2 className="text-base font-black text-white flex items-center space-x-1.5">
               <span>通算スタッツ</span>
               {isMyTeam && (
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold px-1.5 py-0.2 rounded-full flex items-center space-x-0.5">
-                  <Star className="w-2.5 h-2.5 fill-amber-300" />
+                <span className="text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/40 font-bold px-1.5 py-0.2 rounded-full flex items-center space-x-0.5">
+                  <Shield className="w-2.5 h-2.5" />
                   <span>マイチーム</span>
                 </span>
               )}
@@ -140,7 +140,7 @@ export const TotalStatsScreen: React.FC = () => {
                   style={{ backgroundColor: t.color }}
                 />
                 <span>{t.name}</span>
-                {isTMyTeam && <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />}
+                {isTMyTeam && <Shield className="w-2.5 h-2.5 text-orange-400" />}
               </button>
             );
           })}

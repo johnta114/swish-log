@@ -18,13 +18,27 @@ import {
   Clock,
   FileSpreadsheet,
   UploadCloud,
+  MapPin,
+  Video,
+  ExternalLink,
+  Edit2,
+  Trash2,
+  X,
+  ClipboardPaste,
 } from 'lucide-react';
 
 export const GameStatsScreen: React.FC = () => {
-  const { screenParams, getGameById, teams, players, navigateTo } = useApp();
+  const { screenParams, getGameById, teams, players, navigateTo, updateGame } = useApp();
 
   const gameId = screenParams.gameId as string;
   const game = getGameById(gameId);
+
+  // 動画URL・会場編集モーダルの状態
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [videoUrlInput, setVideoUrlInput] = useState('');
+  const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
+  const [venueNameInput, setVenueNameInput] = useState('');
+  const [venueUrlInput, setVenueUrlInput] = useState('');
 
   // 画面モード: 'boxscore' | 'shotchart' | 'timeline'
   const [viewMode, setViewMode] = useState<'boxscore' | 'shotchart' | 'timeline'>(() => {
@@ -256,6 +270,45 @@ export const GameStatsScreen: React.FC = () => {
           )}
         </div>
 
+        {/* 試合会場表示 */}
+        <div className="flex items-center justify-between text-xs bg-slate-900/50 px-2.5 py-1.5 rounded-xl border border-slate-750">
+          <div className="flex items-center space-x-1.5 min-w-0 mr-2">
+            <MapPin className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+            <span className="font-medium truncate text-slate-300">
+              {game.venue || '会場未設定'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            {game.venue && (
+              <a
+                href={
+                  game.venueUrl ||
+                  (game.venueLocation
+                    ? `https://www.google.com/maps/search/?api=1&query=${game.venueLocation.lat},${game.venueLocation.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(game.venue)}`)
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-sky-400 hover:text-sky-300 font-medium flex items-center space-x-0.5"
+              >
+                <span>マップで開く</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            <button
+              onClick={() => {
+                setVenueNameInput(game.venue || '');
+                setVenueUrlInput(game.venueUrl || '');
+                setIsVenueModalOpen(true);
+              }}
+              className="text-slate-400 hover:text-white p-1 rounded transition"
+              title="会場情報を編集"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
         {/* スコア表示 */}
         <div className="grid grid-cols-5 items-center gap-2 py-2">
           {/* ホーム */}
@@ -295,6 +348,50 @@ export const GameStatsScreen: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 試合動画（YouTube）エリア */}
+      <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-3.5 shadow-sm space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
+            <Video className="w-3.5 h-3.5 text-red-500" />
+            <span>試合動画 (YouTube)</span>
+          </span>
+          {game.videoUrl && (
+            <button
+              onClick={() => {
+                setVideoUrlInput(game.videoUrl || '');
+                setIsVideoModalOpen(true);
+              }}
+              className="text-[11px] text-slate-400 hover:text-white flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-slate-700/50 hover:bg-slate-700 transition"
+            >
+              <Edit2 className="w-3 h-3" />
+              <span>URL編集</span>
+            </button>
+          )}
+        </div>
+
+        {game.videoUrl ? (
+          <button
+            onClick={() => window.open(game.videoUrl, '_blank')}
+            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:scale-[0.98] text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-red-900/30 transition"
+          >
+            <Play className="w-4 h-4 fill-current" />
+            <span>試合動画を見る（YouTube）</span>
+            <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              setVideoUrlInput('');
+              setIsVideoModalOpen(true);
+            }}
+            className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-600 hover:border-slate-500 bg-slate-900/40 hover:bg-slate-900/70 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
+          >
+            <Video className="w-3.5 h-3.5 text-red-400" />
+            <span>＋ 試合動画（YouTube）のリンクを追加</span>
+          </button>
+        )}
       </div>
 
       {/* データ共有・エクスポートエリア */}
@@ -686,6 +783,194 @@ export const GameStatsScreen: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* YouTube動画URL登録・編集モーダル */}
+      {isVideoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-750 rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <Video className="w-5 h-5 text-red-500" />
+                <h3 className="text-base font-bold text-white">試合動画リンク（YouTube）</h3>
+              </div>
+              <button
+                onClick={() => setIsVideoModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">YouTube動画のURL</label>
+              <div className="flex space-x-2">
+                <input
+                  type="url"
+                  placeholder="https://youtu.be/... または https://youtube.com/watch?v=..."
+                  value={videoUrlInput}
+                  onChange={(e) => setVideoUrlInput(e.target.value)}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text) setVideoUrlInput(text.trim());
+                    } catch {}
+                  }}
+                  className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white text-xs font-medium flex items-center space-x-1 shrink-0 transition"
+                  title="クリップボードから貼付"
+                >
+                  <ClipboardPaste className="w-3.5 h-3.5 text-slate-400" />
+                  <span>貼付</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                YouTubeの共有リンク（https://youtu.be/...等）を貼り付けてください。動画ボタンを押すとYouTubeアプリまたはブラウザで開きます。
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+              {game.videoUrl ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateGame({
+                      ...game,
+                      videoUrl: undefined,
+                    });
+                    setVideoUrlInput('');
+                    setIsVideoModalOpen(false);
+                  }}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-semibold flex items-center space-x-1 px-3 py-2 rounded-xl hover:bg-rose-500/10 transition"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>削除</span>
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsVideoModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateGame({
+                      ...game,
+                      videoUrl: videoUrlInput.trim() || undefined,
+                    });
+                    setIsVideoModalOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition shadow"
+                >
+                  保存する
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 会場・マップURL登録・編集モーダル */}
+      {isVenueModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-750 rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-5 h-5 text-orange-500" />
+                <h3 className="text-base font-bold text-white">会場情報の編集</h3>
+              </div>
+              <button
+                onClick={() => setIsVenueModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">会場名 / 体育館名</label>
+                <input
+                  type="text"
+                  placeholder="例: 代々木第二体育館"
+                  value={venueNameInput}
+                  onChange={(e) => setVenueNameInput(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-300">マップ共有URL</label>
+                  <a
+                    href="https://www.google.com/maps"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-sky-400 hover:underline flex items-center space-x-0.5"
+                  >
+                    <span>Googleマップを開く</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="flex space-x-2">
+                  <input
+                    type="url"
+                    placeholder="https://maps.app.goo.gl/... 等"
+                    value={venueUrlInput}
+                    onChange={(e) => setVenueUrlInput(e.target.value)}
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) setVenueUrlInput(text.trim());
+                      } catch {}
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white text-xs font-medium flex items-center space-x-1 shrink-0 transition"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5 text-slate-400" />
+                    <span>貼付</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsVenueModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateGame({
+                    ...game,
+                    venue: venueNameInput.trim() || undefined,
+                    venueUrl: venueUrlInput.trim() || undefined,
+                  });
+                  setIsVenueModalOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow"
+              >
+                保存する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

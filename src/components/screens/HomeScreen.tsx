@@ -13,9 +13,10 @@ import {
   Users,
   Search,
   X,
-  Star,
   RotateCcw,
   UploadCloud,
+  MapPin,
+  Video,
 } from 'lucide-react';
 
 export const HomeScreen: React.FC = () => {
@@ -64,7 +65,7 @@ export const HomeScreen: React.FC = () => {
         }
       }
 
-      // 4. フリーワード検索（チーム名・大会名）
+      // 4. フリーワード検索（チーム名・大会名・会場名）
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchHome =
@@ -74,7 +75,8 @@ export const HomeScreen: React.FC = () => {
           awayTeam.name.toLowerCase().includes(q) ||
           awayTeam.shortName.toLowerCase().includes(q);
         const matchTournament = game.tournamentName?.toLowerCase().includes(q);
-        if (!matchHome && !matchAway && !matchTournament) {
+        const matchVenue = game.venue?.toLowerCase().includes(q);
+        if (!matchHome && !matchAway && !matchTournament && !matchVenue) {
           return false;
         }
       }
@@ -170,13 +172,19 @@ export const HomeScreen: React.FC = () => {
                 >
                   {/* ヘッダー情報 */}
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center space-x-1.5">
-                      <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="truncate max-w-[180px]">
+                    <div className="flex items-center space-x-1.5 min-w-0">
+                      <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate max-w-[130px]">
                         {game.tournamentName || '練習試合'}
                       </span>
+                      {game.venue && (
+                        <span className="text-slate-400 flex items-center gap-0.5 truncate text-[11px]">
+                          <MapPin className="w-3 h-3 text-orange-400 shrink-0" />
+                          <span className="truncate max-w-[100px]">{game.venue}</span>
+                        </span>
+                      )}
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px] shrink-0">
                       {game.currentQuarter} 進行中
                     </span>
                   </div>
@@ -328,7 +336,7 @@ export const HomeScreen: React.FC = () => {
           </div>
 
           {/* 下段: クイックフィルタータブ（すべて / マイチーム / チーム絞り込み） */}
-          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar pt-0.5">
+          <div className="flex items-center space-x-1.5 pt-0.5">
             <button
               onClick={() => {
                 setFilterMode('all');
@@ -355,27 +363,29 @@ export const HomeScreen: React.FC = () => {
                     : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Star className="w-3 h-3 fill-current text-amber-300" />
-                <span>マイチーム ({myTeam.shortName || myTeam.name})</span>
+                <Shield className="w-3 h-3 text-orange-400" />
+                <span>マイチーム</span>
               </button>
             )}
 
-            {/* チーム個別ドロップダウン */}
-            <select
-              value={selectedTeamFilter}
-              onChange={(e) => {
-                setSelectedTeamFilter(e.target.value);
-                if (e.target.value !== 'all') setFilterMode('all');
-              }}
-              className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-orange-500 shrink-0"
-            >
-              <option value="all">チームを選択...</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} {t.id === myTeamId ? '★' : ''}
-                </option>
-              ))}
-            </select>
+            {/* チーム個別ドロップダウン（画面幅に合わせて自動伸縮・はみ出さない） */}
+            <div className="flex-1 min-w-0">
+              <select
+                value={selectedTeamFilter}
+                onChange={(e) => {
+                  setSelectedTeamFilter(e.target.value);
+                  if (e.target.value !== 'all') setFilterMode('all');
+                }}
+                className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-orange-500 truncate"
+              >
+                <option value="all">チームを選択...</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.id === myTeamId ? '(🛡️マイチーム)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -421,12 +431,31 @@ export const HomeScreen: React.FC = () => {
                   className="bg-slate-800/70 border border-slate-700/60 hover:border-slate-500 rounded-2xl p-4 shadow cursor-pointer transition space-y-2.5"
                 >
                   <div className="flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center space-x-2 truncate min-w-0">
+                    <div className="flex items-center space-x-1.5 truncate min-w-0">
                       <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       <span className="font-mono">{game.date}</span>
                       {game.tournamentName && (
-                        <span className="text-slate-400 truncate max-w-[140px]">
+                        <span className="text-slate-400 truncate max-w-[110px]">
                           • {game.tournamentName}
+                        </span>
+                      )}
+                      {game.venue && (
+                        <span
+                          onClick={(e) => {
+                            if (game.venueUrl) {
+                              e.stopPropagation();
+                              window.open(game.venueUrl, '_blank');
+                            }
+                          }}
+                          className={`flex items-center gap-0.5 truncate text-[11px] ${
+                            game.venueUrl
+                              ? 'text-sky-400 hover:underline cursor-pointer'
+                              : 'text-slate-400'
+                          }`}
+                          title={game.venueUrl ? 'マップアプリで会場を開く' : undefined}
+                        >
+                          <MapPin className="w-3 h-3 text-orange-400 shrink-0" />
+                          <span className="truncate max-w-[100px]">{game.venue}</span>
                         </span>
                       )}
                     </div>
@@ -448,78 +477,96 @@ export const HomeScreen: React.FC = () => {
                         </span>
                       )
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-medium text-[10px]">
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold text-[10px] border border-slate-700">
                         試合終了
                       </span>
                     )}
                   </div>
 
-                  {/* スコアサマリー */}
-                  <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: homeTeam.color }}
-                      />
+                  {/* スコア */}
+                  <div className="space-y-1.5 py-1">
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: homeTeam.color }}
+                        />
+                        <span
+                          className={`text-sm flex items-center space-x-1 ${
+                            isHomeWin ? 'font-bold text-white' : 'text-slate-300'
+                          }`}
+                        >
+                          <span>{homeTeam.name}</span>
+                          {isHomeMyTeam && (
+                            <Shield className="w-3 h-3 text-orange-400 shrink-0" />
+                          )}
+                        </span>
+                      </div>
                       <span
-                        className={`text-sm flex items-center space-x-1 ${
-                          isHomeWin ? 'font-bold text-white' : 'text-slate-300'
+                        className={`text-base font-black font-mono ${
+                          isHomeWin ? 'text-white' : 'text-slate-400'
                         }`}
                       >
-                        <span>{homeTeam.name}</span>
-                        {isHomeMyTeam && (
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
-                        )}
+                        {stats.homeStats.score}
                       </span>
                     </div>
-                    <span
-                      className={`text-base font-black font-mono ${
-                        isHomeWin ? 'text-white' : 'text-slate-400'
-                      }`}
-                    >
-                      {stats.homeStats.score}
-                    </span>
-                  </div>
 
-                  <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: awayTeam.color }}
-                      />
+                    <div className="flex items-center justify-between px-2">
+                      <div className="flex items-center space-x-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: awayTeam.color }}
+                        />
+                        <span
+                          className={`text-sm flex items-center space-x-1 ${
+                            !isHomeWin && !isTie ? 'font-bold text-white' : 'text-slate-300'
+                          }`}
+                        >
+                          <span>{awayTeam.name}</span>
+                          {isAwayMyTeam && (
+                            <Shield className="w-3 h-3 text-orange-400 shrink-0" />
+                          )}
+                        </span>
+                      </div>
                       <span
-                        className={`text-sm flex items-center space-x-1 ${
-                          !isHomeWin && !isTie ? 'font-bold text-white' : 'text-slate-300'
+                        className={`text-base font-black font-mono ${
+                          !isHomeWin && !isTie ? 'text-white' : 'text-slate-400'
                         }`}
                       >
-                        <span>{awayTeam.name}</span>
-                        {isAwayMyTeam && (
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
-                        )}
+                        {stats.awayStats.score}
                       </span>
                     </div>
-                    <span
-                      className={`text-base font-black font-mono ${
-                        !isHomeWin && !isTie ? 'text-white' : 'text-slate-400'
-                      }`}
-                    >
-                      {stats.awayStats.score}
-                    </span>
                   </div>
 
                   {/* フッター */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/50 text-[11px] text-orange-400 font-semibold">
-                    <span className="flex items-center space-x-1">
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/50 text-[11px]">
+                    <span className="flex items-center space-x-1 text-orange-400 font-semibold">
                       <BarChart2 className="w-3.5 h-3.5" />
                       <span>ボックススコア・詳細を確認</span>
                     </span>
-                    <button
-                      onClick={(e) => handleDeleteGame(e, game.id)}
-                      className="p-1 text-slate-500 hover:text-red-400 transition"
-                      title="試合を削除"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                    <div className="flex items-center space-x-2">
+                      {game.videoUrl && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(game.videoUrl, '_blank');
+                          }}
+                          className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-bold active:scale-95 transition text-[10px]"
+                          title="YouTubeで試合動画を見る"
+                        >
+                          <Video className="w-3 h-3 text-red-400" />
+                          <span>試合動画</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => handleDeleteGame(e, game.id)}
+                        className="p-1 text-slate-500 hover:text-red-400 transition"
+                        title="試合を削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

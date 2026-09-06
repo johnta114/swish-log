@@ -2,6 +2,7 @@ import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
 import { HomeScreen } from './components/screens/HomeScreen';
+import { MyTeamScreen } from './components/screens/MyTeamScreen';
 import { TeamsScreen } from './components/screens/TeamsScreen';
 import { PlayersScreen } from './components/screens/PlayersScreen';
 import { NewGameScreen } from './components/screens/NewGameScreen';
@@ -20,6 +21,7 @@ const MainContent: React.FC = () => {
 
         <main className={`flex-1 ${currentScreen === 'live_game' ? 'p-0 overflow-hidden flex flex-col' : 'px-4 pt-4'}`}>
           {currentScreen === 'home' && <HomeScreen />}
+          {currentScreen === 'my_team' && <MyTeamScreen />}
           {currentScreen === 'total_stats' && <TotalStatsScreen />}
           {currentScreen === 'teams' && <TeamsScreen />}
           {currentScreen === 'players' && <PlayersScreen />}

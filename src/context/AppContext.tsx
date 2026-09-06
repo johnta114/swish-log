@@ -5,6 +5,7 @@ import { executeGameImport } from '../utils/gameShare';
 
 export type ScreenType =
   | 'home'
+  | 'my_team'
   | 'total_stats'
   | 'teams'
   | 'players'
@@ -40,6 +41,10 @@ interface AppContextType {
   createGame: (gameData: {
     date: string;
     tournamentName?: string;
+    venue?: string;
+    venueLocation?: { lat: number; lng: number };
+    venueUrl?: string;
+    videoUrl?: string;
     homeTeamId: string;
     awayTeamId: string;
     homeRosterPlayerIds: string[];
@@ -86,7 +91,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       const scr = sp.get('screen') as ScreenType;
-      if (scr && ['home', 'total_stats', 'teams', 'players', 'new_game', 'live_game', 'stats_view'].includes(scr)) {
+      if (scr && ['home', 'my_team', 'total_stats', 'teams', 'players', 'new_game', 'live_game', 'stats_view'].includes(scr)) {
         return scr;
       }
     }
@@ -217,6 +222,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const createGame = (data: {
     date: string;
     tournamentName?: string;
+    venue?: string;
+    venueLocation?: { lat: number; lng: number };
+    venueUrl?: string;
+    videoUrl?: string;
     homeTeamId: string;
     awayTeamId: string;
     homeRosterPlayerIds: string[];
@@ -245,10 +254,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
+    if (data.venue) {
+      storage.saveVenueHistory(data.venue);
+    }
+
     const newGame: Game = {
       id: `game_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       date: data.date,
       tournamentName: data.tournamentName,
+      venue: data.venue,
+      venueLocation: data.venueLocation,
+      venueUrl: data.venueUrl,
+      videoUrl: data.videoUrl,
       homeTeamId: data.homeTeamId,
       awayTeamId: data.awayTeamId,
       homeRosterPlayerIds: data.homeRosterPlayerIds,

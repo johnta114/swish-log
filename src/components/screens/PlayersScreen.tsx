@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import type { Player } from '../../types';
-import { Users, Plus, Edit2, Trash2, ArrowLeft, Check, History, BarChart2, Star } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, ArrowLeft, Check, History, BarChart2, Shield } from 'lucide-react';
 
 const POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C'];
 const GRADE_PRESETS = ['1年', '2年', '3年', '4年', '一般'];
@@ -179,7 +179,7 @@ export const PlayersScreen: React.FC = () => {
                     />
                     <span>{t.name}</span>
                     {isTMyTeam && (
-                      <Star className="w-3 h-3 text-amber-400 fill-amber-400 ml-0.5" />
+                      <Shield className="w-3 h-3 text-orange-400 ml-0.5" />
                     )}
                   </button>
                 );

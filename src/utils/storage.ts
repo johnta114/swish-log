@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   GAMES: 'courtstats_games_v1',
   ACTIVE_GAME_ID: 'courtstats_active_game_id_v1',
   MY_TEAM_ID: 'courtstats_my_team_id_v1',
+  VENUE_HISTORY: 'courtstats_venue_history_v1',
 };
 
 // 初期サンプルデータ
@@ -261,6 +262,23 @@ export const storage = {
     } else {
       localStorage.setItem(STORAGE_KEYS.MY_TEAM_ID, 'null');
     }
+  },
+
+  getVenueHistory(): string[] {
+    const data = localStorage.getItem(STORAGE_KEYS.VENUE_HISTORY);
+    if (!data) return ['市民総合体育館', '区立スポーツセンター', '県民アリーナ'];
+    try {
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  },
+
+  saveVenueHistory(venue: string): void {
+    if (!venue.trim()) return;
+    const history = this.getVenueHistory().filter((v) => v !== venue.trim());
+    history.unshift(venue.trim());
+    localStorage.setItem(STORAGE_KEYS.VENUE_HISTORY, JSON.stringify(history.slice(0, 10)));
   },
 
   resetAllData(): void {

@@ -156,6 +156,10 @@ export interface Game {
   currentQuarter: Quarter;
   status: GameStatus;
   isU12?: boolean; // U12モード（ミニバス・3P不適用）
+  venue?: string; // 試合会場（体育館・アリーナ名）
+  venueLocation?: { lat: number; lng: number }; // 会場の位置情報（緯度・経度）
+  venueUrl?: string; // マップアプリ（Google Maps / Apple Maps等）の共有URL
+  videoUrl?: string; // 試合動画（YouTube）の共有URL
   events: StatEvent[];
   createdAt: number;
 }

@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Play, ArrowLeft, Calendar, Trophy, CheckSquare, Square, AlertCircle, Star } from 'lucide-react';
+import { storage } from '../../utils/storage';
+import {
+  Play,
+  ArrowLeft,
+  Calendar,
+  Trophy,
+  AlertCircle,
+  Shield,
+  MapPin,
+  ExternalLink,
+  ClipboardPaste,
+  Video,
+  CheckSquare,
+  Square,
+} from 'lucide-react';
 
 export const NewGameScreen: React.FC = () => {
   const { teams, players, myTeamId, createGame, navigateTo } = useApp();
@@ -9,8 +23,16 @@ export const NewGameScreen: React.FC = () => {
     return new Date().toISOString().split('T')[0];
   });
   const [tournamentName, setTournamentName] = useState<string>('');
+  const [venue, setVenue] = useState<string>('');
+  const [venueUrl, setVenueUrl] = useState<string>('');
+  const [videoUrl, setVideoUrl] = useState<string>('');
+  const [venueHistory, setVenueHistory] = useState<string[]>([]);
   const [isU12, setIsU12] = useState<boolean>(false);
   const [homeTeamId, setHomeTeamId] = useState<string>('');
+
+  useEffect(() => {
+    setVenueHistory(storage.getVenueHistory());
+  }, []);
 
   const [awayTeamId, setAwayTeamId] = useState<string>('');
   const [homeRoster, setHomeRoster] = useState<string[]>([]);
@@ -95,6 +117,20 @@ export const NewGameScreen: React.FC = () => {
     }
   };
 
+  const handlePasteMapUrl = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setVenueUrl(text.trim());
+    } catch {
+      // 権限エラー時は手動入力を促す
+    }
+  };
+
+  const handleOpenGoogleMaps = () => {
+    const query = venue.trim() || '体育館';
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+  };
+
   const handleStartGame = (e: React.FormEvent) => {
     e.preventDefault();
     if (!homeTeamId || !awayTeamId) {
@@ -117,6 +153,9 @@ export const NewGameScreen: React.FC = () => {
     const newGame = createGame({
       date,
       tournamentName: tournamentName.trim() || undefined,
+      venue: venue.trim() || undefined,
+      venueUrl: venueUrl.trim() || undefined,
+      videoUrl: videoUrl.trim() || undefined,
       homeTeamId,
       awayTeamId,
       homeRosterPlayerIds: homeRoster,
@@ -125,7 +164,6 @@ export const NewGameScreen: React.FC = () => {
       awayOnCourtPlayerIds: awayRoster.slice(0, 5),
       isU12,
     });
-
 
     navigateTo('live_game', { gameId: newGame.id });
   };
@@ -229,6 +267,96 @@ export const NewGameScreen: React.FC = () => {
             />
           </div>
 
+          {/* 試合会場入力欄 & マップURL紐づけ */}
+          <div className="space-y-2.5">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1.5">
+                <MapPin className="w-3.5 h-3.5 text-orange-400" />
+                <span>試合会場 / 体育館名（任意）</span>
+              </label>
+              <input
+                type="text"
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                placeholder="例: 市民総合体育館、代々木第二体育館"
+                className="w-full h-11 bg-slate-900 border border-slate-700 rounded-xl px-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            {/* 過去会場履歴のクイック選択チップ */}
+            {venueHistory.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] text-slate-400">よく使う会場:</span>
+                {venueHistory.slice(0, 4).map((hist, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setVenue(hist)}
+                    className={`text-[11px] px-2 py-0.5 rounded-md border transition ${
+                      venue === hist
+                        ? 'bg-orange-500/20 text-orange-300 border-orange-500/40 font-semibold'
+                        : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:border-slate-600 hover:text-white'
+                    }`}
+                  >
+                    {hist}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* マップURL入力 & 連携 */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                  <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+                  <span>マップURL（Googleマップ・Appleマップ等）</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleOpenGoogleMaps}
+                  className="text-[11px] text-sky-400 hover:text-sky-300 flex items-center space-x-0.5 hover:underline font-medium"
+                  title="Googleマップを開いて会場を検索"
+                >
+                  <span>Googleマップで探す</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </button>
+              </div>
+              <div className="flex space-x-1.5">
+                <input
+                  type="url"
+                  value={venueUrl}
+                  onChange={(e) => setVenueUrl(e.target.value)}
+                  placeholder="https://maps.app.goo.gl/... または共有リンク"
+                  className="flex-1 h-10 bg-slate-900 border border-slate-700 rounded-xl px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                />
+                <button
+                  type="button"
+                  onClick={handlePasteMapUrl}
+                  className="px-3 h-10 bg-slate-800 hover:bg-slate-750 active:scale-95 border border-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center space-x-1 transition shrink-0 shadow-sm"
+                  title="クリップボードから貼り付け"
+                >
+                  <ClipboardPaste className="w-3.5 h-3.5 text-orange-400" />
+                  <span>貼付</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 試合動画URL（YouTube） */}
+            <div className="pt-1">
+              <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1.5">
+                <Video className="w-3.5 h-3.5 text-red-400" />
+                <span>試合動画URL（YouTubeなど・後からでも追加可能）</span>
+              </label>
+              <input
+                type="url"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="例: https://www.youtube.com/watch?v=...（後から登録可）"
+                className="w-full h-10 bg-slate-900 border border-slate-700 rounded-xl px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+              />
+            </div>
+          </div>
+
           {/* U12モード（ミニバス）トグル */}
           <div className="pt-1 border-t border-slate-700/60">
             <label className="flex items-start space-x-3 p-2.5 bg-slate-900/80 border border-slate-700/80 rounded-xl cursor-pointer hover:border-orange-500/50 transition">
@@ -264,8 +392,8 @@ export const NewGameScreen: React.FC = () => {
                 <span>ホームチーム</span>
               </div>
               {homeTeamId === myTeamId && (
-                <span className="text-[10px] text-amber-400 flex items-center space-x-0.5 font-bold">
-                  <Star className="w-2.5 h-2.5 fill-amber-400" />
+                <span className="text-[10px] text-orange-400 flex items-center space-x-0.5 font-bold">
+                  <Shield className="w-2.5 h-2.5" />
                   <span>自チーム</span>
                 </span>
               )}
@@ -277,7 +405,7 @@ export const NewGameScreen: React.FC = () => {
             >
               {teams.map((t) => (
                 <option key={t.id} value={t.id} disabled={t.id === awayTeamId}>
-                  {t.id === myTeamId ? `★ ${t.name} (マイチーム)` : t.name}
+                  {t.id === myTeamId ? `🛡️ ${t.name} (マイチーム)` : t.name}
                 </option>
               ))}
             </select>
@@ -297,8 +425,8 @@ export const NewGameScreen: React.FC = () => {
                 <span>アウェイチーム</span>
               </div>
               {awayTeamId === myTeamId && (
-                <span className="text-[10px] text-amber-400 flex items-center space-x-0.5 font-bold">
-                  <Star className="w-2.5 h-2.5 fill-amber-400" />
+                <span className="text-[10px] text-orange-400 flex items-center space-x-0.5 font-bold">
+                  <Shield className="w-2.5 h-2.5" />
                   <span>自チーム</span>
                 </span>
               )}
@@ -310,7 +438,7 @@ export const NewGameScreen: React.FC = () => {
             >
               {teams.map((t) => (
                 <option key={t.id} value={t.id} disabled={t.id === homeTeamId}>
-                  {t.id === myTeamId ? `★ ${t.name} (マイチーム)` : t.name}
+                  {t.id === myTeamId ? `🛡️ ${t.name} (マイチーム)` : t.name}
                 </option>
               ))}
             </select>
