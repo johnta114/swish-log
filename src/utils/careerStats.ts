@@ -23,6 +23,11 @@ export function calculatePlayerCareerStats(
   const shotEvents: StatEvent[] = [];
   const gameLogs: PlayerGameLog[] = [];
 
+  // 集計期間内での着用背番号（最新試合のものを優先）
+  let periodNumber = player.number;
+  let periodSubNumber = player.subNumber;
+  let foundLatestPeriodNumber = false;
+
   // 日付順にソート（新しい順）
   const sortedGames = [...games].sort((a, b) => {
     return new Date(b.date).getTime() - new Date(a.date).getTime() || b.createdAt - a.createdAt;
@@ -52,7 +57,15 @@ export function calculatePlayerCareerStats(
     // 当時の背番号・選手名（スナップショットがあれば優先、なければ現在のもの）
     const snapshot = game.rosterSnapshots?.[playerId];
     const playerNumberInGame = snapshot?.number ?? playerEvents[0]?.playerNumber ?? player.number;
+    const playerSubNumberInGame = snapshot?.subNumber ?? player.subNumber;
     const playerNameInGame = snapshot?.name ?? playerEvents[0]?.playerName ?? player.name;
+
+    // 集計期間内で最も新しい試合の背番号をこの期間の背番号とする
+    if (!foundLatestPeriodNumber) {
+      periodNumber = playerNumberInGame;
+      periodSubNumber = playerSubNumberInGame;
+      foundLatestPeriodNumber = true;
+    }
 
     let gamePts = 0;
     let g2m = 0;
@@ -108,6 +121,7 @@ export function calculatePlayerCareerStats(
       opponentTeamName: opponentTeam?.name ?? '対戦相手',
       opponentTeamColor: opponentTeam?.color ?? '#64748b',
       playerNumberInGame,
+      subNumberInGame: playerSubNumberInGame,
       playerNameInGame,
       points: gamePts,
       fg2m: g2m,
@@ -130,6 +144,8 @@ export function calculatePlayerCareerStats(
     playerId,
     currentNumber: player.number,
     subNumber: player.subNumber,
+    periodNumber,
+    periodSubNumber,
     name: player.name,
     teamId: player.teamId,
     position: player.position,

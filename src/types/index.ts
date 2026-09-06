@@ -150,6 +150,7 @@ export interface StatEvent {
 export interface Game {
   id: string;
   date: string;
+  seasonYear?: number; // 活動年度（シーズン年度・例: 2026）
   tournamentName?: string;
   homeTeamId: string;
   awayTeamId: string;
@@ -157,7 +158,7 @@ export interface Game {
   awayRosterPlayerIds: string[];
   homeOnCourtPlayerIds?: string[];
   awayOnCourtPlayerIds?: string[];
-  rosterSnapshots?: Record<string, { number: number; name: string }>; // 試合当時の選手背番号・名前
+  rosterSnapshots?: Record<string, { number: number; subNumber?: number; name: string }>; // 試合当時の選手背番号・名前
   currentQuarter: Quarter;
   status: GameStatus;
   isU12?: boolean; // U12モード（ミニバス・3P不適用）
@@ -238,6 +239,7 @@ export interface PlayerGameLog {
   opponentTeamName: string;
   opponentTeamColor: string;
   playerNumberInGame: number;
+  subNumberInGame?: number;
   playerNameInGame: string;
   points: number;
   fg2m: number;
@@ -253,6 +255,8 @@ export interface PlayerCareerStats {
   playerId: string;
   currentNumber: number;
   subNumber?: number;
+  periodNumber?: number; // 集計期間（またはシーズン年度）中の着用背番号
+  periodSubNumber?: number; // 集計期間中のリバーシブル背番号
   name: string;
   teamId: string;
   position?: string;

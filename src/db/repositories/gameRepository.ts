@@ -7,7 +7,7 @@ export class GameRepository {
    */
   public async getAll(): Promise<Game[]> {
     const gameRows = await dbService.query<any>(
-      `SELECT id, date, tournament_name, home_team_id, away_team_id,
+      `SELECT id, date, season_year, tournament_name, home_team_id, away_team_id,
               current_quarter, status, is_u12, venue, venue_lat, venue_lng,
               venue_url, video_url, created_at
        FROM games
@@ -17,7 +17,7 @@ export class GameRepository {
     if (gameRows.length === 0) return [];
 
     const rosterRows = await dbService.query<any>(
-      `SELECT game_id, player_id, team_id, roster_number, roster_name, is_on_court
+      `SELECT game_id, player_id, team_id, roster_number, roster_sub_number, roster_name, is_on_court
        FROM game_rosters`
     );
 
@@ -65,7 +65,7 @@ export class GameRepository {
       const awayRosterPlayerIds: string[] = [];
       const homeOnCourtPlayerIds: string[] = [];
       const awayOnCourtPlayerIds: string[] = [];
-      const rosterSnapshots: Record<string, { number: number; name: string }> = {};
+      const rosterSnapshots: Record<string, { number: number; subNumber?: number; name: string }> = {};
 
       for (const r of gRosters) {
         if (r.team_id === g.home_team_id) {
@@ -77,6 +77,7 @@ export class GameRepository {
         }
         rosterSnapshots[r.player_id] = {
           number: Number(r.roster_number),
+          subNumber: r.roster_sub_number != null ? Number(r.roster_sub_number) : undefined,
           name: r.roster_name,
         };
       }
@@ -84,6 +85,7 @@ export class GameRepository {
       return {
         id: g.id,
         date: g.date,
+        seasonYear: g.season_year != null ? Number(g.season_year) : undefined,
         tournamentName: g.tournament_name || undefined,
         homeTeamId: g.home_team_id,
         awayTeamId: g.away_team_id,
@@ -115,13 +117,14 @@ export class GameRepository {
     // 1. games テーブルへの保存
     await dbService.run(
       `INSERT OR REPLACE INTO games (
-        id, date, tournament_name, home_team_id, away_team_id,
+        id, date, season_year, tournament_name, home_team_id, away_team_id,
         current_quarter, status, is_u12, venue, venue_lat, venue_lng,
         venue_url, video_url, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         game.id,
         game.date,
+        game.seasonYear != null ? game.seasonYear : null,
         game.tournamentName || null,
         game.homeTeamId,
         game.awayTeamId,
@@ -147,18 +150,18 @@ export class GameRepository {
     for (const pId of game.homeRosterPlayerIds || []) {
       const snap = snapshots[pId] || { number: 0, name: '' };
       await dbService.run(
-        `INSERT INTO game_rosters (game_id, player_id, team_id, roster_number, roster_name, is_on_court)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [game.id, pId, game.homeTeamId, snap.number, snap.name, homeOnCourtSet.has(pId) ? 1 : 0]
+        `INSERT INTO game_rosters (game_id, player_id, team_id, roster_number, roster_sub_number, roster_name, is_on_court)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [game.id, pId, game.homeTeamId, snap.number, snap.subNumber ?? null, snap.name, homeOnCourtSet.has(pId) ? 1 : 0]
       );
     }
 
     for (const pId of game.awayRosterPlayerIds || []) {
       const snap = snapshots[pId] || { number: 0, name: '' };
       await dbService.run(
-        `INSERT INTO game_rosters (game_id, player_id, team_id, roster_number, roster_name, is_on_court)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [game.id, pId, game.awayTeamId, snap.number, snap.name, awayOnCourtSet.has(pId) ? 1 : 0]
+        `INSERT INTO game_rosters (game_id, player_id, team_id, roster_number, roster_sub_number, roster_name, is_on_court)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [game.id, pId, game.awayTeamId, snap.number, snap.subNumber ?? null, snap.name, awayOnCourtSet.has(pId) ? 1 : 0]
       );
     }
 

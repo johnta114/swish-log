@@ -50,6 +50,7 @@ interface AppContextType {
   // 試合操作
   createGame: (gameData: {
     date: string;
+    seasonYear?: number;
     tournamentName?: string;
     venue?: string;
     venueLocation?: { lat: number; lng: number };
@@ -223,6 +224,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // チーム操作
   const addTeam = (teamData: Omit<Team, 'id' | 'createdAt'>): Team => {
+    // 同名チームが既に存在する場合は新規作成せず、既存チームを返す（同一チームとして一元管理）
+    const existing = teams.find(
+      (t) => t.name.trim().toLowerCase() === teamData.name.trim().toLowerCase()
+    );
+    if (existing) {
+      return existing;
+    }
+
     const newTeam: Team = {
       ...teamData,
       id: `team_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -285,6 +294,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // 試合操作
   const createGame = (data: {
     date: string;
+    seasonYear?: number;
     tournamentName?: string;
     venue?: string;
     venueLocation?: { lat: number; lng: number };
@@ -309,12 +319,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         : data.awayRosterPlayerIds.slice(0, 5);
 
     // ロスター選手の当時の背番号・名前スナップショットを生成（過去の記録保持）
-    const rosterSnapshots: Record<string, { number: number; name: string }> = {};
+    const rosterSnapshots: Record<string, { number: number; subNumber?: number; name: string }> = {};
     const allRosterIds = [...data.homeRosterPlayerIds, ...data.awayRosterPlayerIds];
     allRosterIds.forEach((pid) => {
       const pl = players.find((p) => p.id === pid);
       if (pl) {
-        rosterSnapshots[pid] = { number: pl.number, name: pl.name };
+        rosterSnapshots[pid] = {
+          number: pl.number,
+          subNumber: pl.subNumber,
+          name: pl.name,
+        };
       }
     });
 
@@ -322,9 +336,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       storage.saveVenueHistory(data.venue);
     }
 
+    const calculatedSeasonYear =
+      data.seasonYear ?? (parseInt(data.date.substring(0, 4), 10) || new Date().getFullYear());
+
     const newGame: Game = {
       id: `game_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       date: data.date,
+      seasonYear: calculatedSeasonYear,
       tournamentName: data.tournamentName,
       venue: data.venue,
       venueLocation: data.venueLocation,

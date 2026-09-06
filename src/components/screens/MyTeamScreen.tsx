@@ -49,9 +49,20 @@ export const MyTeamScreen: React.FC = () => {
     navigateTo,
   } = useApp();
 
-  // マイチーム候補一覧（isMyTeam が true の全チーム、または現在の myTeam）
+  // マイチーム候補一覧（isMyTeam が true の全チーム、または現在の myTeam、同名重複は排除）
   const myTeamList = useMemo(() => {
-    return teams.filter((t) => t.isMyTeam || t.id === myTeamId);
+    const seen = new Set<string>();
+    const list: typeof teams = [];
+    teams
+      .filter((t) => t.isMyTeam || t.id === myTeamId)
+      .forEach((t) => {
+        const key = t.name.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push(t);
+        }
+      });
+    return list;
   }, [teams, myTeamId]);
 
   // チーム編集モーダル状態
@@ -240,8 +251,8 @@ export const MyTeamScreen: React.FC = () => {
     setIsNewSeasonModalOpen(true);
   };
 
-  // 新年度チーム作成実行（選手引き継ぎ & 年齢+1）
-  const handleCreateNewSeasonTeam = (e: React.FormEvent) => {
+  // 新年度へ更新実行（同一チームを維持したまま、年度更新 & 選手年齢+1）
+  const handleUpdateNewSeason = (e: React.FormEvent) => {
     e.preventDefault();
     if (!myTeam) return;
 
@@ -250,36 +261,29 @@ export const MyTeamScreen: React.FC = () => {
       return;
     }
 
-    // 1. 新年度チームを作成（ロゴ情報も引き継ぎ）
-    const newTeam = addTeam({
-      name: myTeam.name,
-      shortName: myTeam.shortName,
-      color: myTeam.color,
+    // 1. チームの年度を更新（同一チームIDを維持して名寄せを継続）
+    updateTeam({
+      ...myTeam,
       seasonYear: newSeasonYear,
-      logoUrl: myTeam.logoUrl,
-      isMyTeam: true,
     });
 
-    // 2. 選択された選手を新チームの選手として複製・引き継ぎ
+    // 2. 選択された選手（継続選手）の年齢を+1歳に更新
     const playersToCarry = myTeamPlayers.filter((p) => carryOverPlayerIds.includes(p.id));
-    for (const p of playersToCarry) {
-      // 年齢のみを1増やす（設定されている場合）
-      const nextAge = typeof p.age === 'number' && !isNaN(p.age) ? p.age + 1 : undefined;
+    const playersToRemove = myTeamPlayers.filter((p) => !carryOverPlayerIds.includes(p.id));
 
-      addPlayer({
-        teamId: newTeam.id,
-        number: p.number,
-        subNumber: p.subNumber,
-        name: p.name,
-        position: p.position,
-        notes: p.notes,
+    for (const p of playersToCarry) {
+      const nextAge = typeof p.age === 'number' && !isNaN(p.age) ? p.age + 1 : undefined;
+      updatePlayer({
+        ...p,
         age: nextAge,
-        numberHistory: p.numberHistory ? [...p.numberHistory] : undefined,
       });
     }
 
-    // 3. 新年度チームをアクティブなマイチームに指定
-    setMyTeamId(newTeam.id);
+    // 引き継がない（卒業・退団）選手は現在のロスターから削除（過去試合の記録はスナップショットで安全に保持される）
+    for (const p of playersToRemove) {
+      deletePlayer(p.id);
+    }
+
     setIsNewSeasonModalOpen(false);
   };
 
@@ -412,10 +416,10 @@ export const MyTeamScreen: React.FC = () => {
             <button
               onClick={handleOpenNewSeason}
               className="flex items-center space-x-1 text-xs bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 px-2.5 py-1.5 rounded-lg transition font-semibold"
-              title="前年度の所属選手を引き継いで新年度チームを作成"
+              title="同一チームのまま活動年度を更新し、選手年齢を一括+1歳更新"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>新年度チーム</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>新年度へ更新</span>
             </button>
 
             <button
@@ -853,18 +857,18 @@ export const MyTeamScreen: React.FC = () => {
         </div>
       )}
 
-      {/* 新年度チーム引き継ぎ作成モーダル */}
+      {/* 新年度へ更新モーダル */}
       {isNewSeasonModalOpen && myTeam && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-orange-400" />
-                  新年度チームの作成（選手引き継ぎ）
+                  <Sparkles className="w-4 h-4 text-orange-400" />
+                  新年度へ更新（選手年齢の一括加算）
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  「{myTeam.name}」の選手を引き継いで新チームを作成します
+                  同一チームのまま活動年度を更新し、選手の年齢を一括+1歳加算します
                 </p>
               </div>
               <button
@@ -881,7 +885,7 @@ export const MyTeamScreen: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleCreateNewSeasonTeam} className="space-y-4">
+            <form onSubmit={handleUpdateNewSeason} className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1">
                   新しい活動年度 (年) *
@@ -900,7 +904,7 @@ export const MyTeamScreen: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold text-slate-300">
-                    引き継ぐ選手を選択 ({carryOverPlayerIds.length}/{myTeamPlayers.length}名)
+                    新年度も継続する選手 ({carryOverPlayerIds.length}/{myTeamPlayers.length}名)
                   </label>
                   <button
                     type="button"
@@ -965,7 +969,7 @@ export const MyTeamScreen: React.FC = () => {
                   })}
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  ※引き継ぎ時、年齢は+1歳加算されます。
+                  ※継続選手は年齢が+1歳加算されます。チェックを外した選手はロスターから整理されます（過去試合の記録・スタッツは安全に保持されます）。
                 </p>
               </div>
 
@@ -981,7 +985,7 @@ export const MyTeamScreen: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 text-xs font-bold rounded-xl bg-orange-600 hover:bg-orange-500 text-white shadow-md active:scale-95 transition"
                 >
-                  新年度チームを作成
+                  新年度へ更新する
                 </button>
               </div>
             </form>

@@ -97,6 +97,90 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 6,
+    name: 'add_game_season_year_and_merge_duplicate_teams',
+    up: async (service: SQLiteService) => {
+      // 1. games テーブルに season_year カラムを追加
+      try {
+        const gameTableInfo = await service.query<any>('PRAGMA table_info(games)');
+        const hasSeasonYear = gameTableInfo.some((col: any) => col.name === 'season_year');
+        if (!hasSeasonYear) {
+          await service.run('ALTER TABLE games ADD COLUMN season_year INTEGER DEFAULT NULL');
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('duplicate column')) {
+          throw err;
+        }
+      }
+
+      // 既存試合データの season_year を開催日(date)から自動補完
+      try {
+        await service.run(`
+          UPDATE games
+          SET season_year = CAST(SUBSTR(date, 1, 4) AS INTEGER)
+          WHERE season_year IS NULL AND date IS NOT NULL AND length(date) >= 4
+        `);
+        await service.run('CREATE INDEX IF NOT EXISTS idx_games_season_year ON games(season_year DESC)');
+      } catch (err) {
+        console.warn('Failed to backfill game season_year:', err);
+      }
+
+      // 2. game_rosters テーブルに roster_sub_number カラムを追加
+      try {
+        const rosterTableInfo = await service.query<any>('PRAGMA table_info(game_rosters)');
+        const hasRosterSubNumber = rosterTableInfo.some((col: any) => col.name === 'roster_sub_number');
+        if (!hasRosterSubNumber) {
+          await service.run('ALTER TABLE game_rosters ADD COLUMN roster_sub_number INTEGER DEFAULT NULL');
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('duplicate column')) {
+          throw err;
+        }
+      }
+
+      // 3. 同名チームの統合（名寄せ）
+      try {
+        const dupTeams = await service.query<any>(`
+          SELECT name, COUNT(*) as cnt
+          FROM teams
+          GROUP BY name
+          HAVING cnt > 1
+        `);
+
+        for (const dup of dupTeams) {
+          const matchingTeams = await service.query<any>(`
+            SELECT id, name, short_name, is_my_team, season_year, created_at
+            FROM teams
+            WHERE name = ?
+            ORDER BY is_my_team DESC, created_at DESC
+          `, [dup.name]);
+
+          if (matchingTeams.length <= 1) continue;
+
+          // 最も優先度の高い1つをプライマリチームとする
+          const primary = matchingTeams[0];
+          const duplicateIds = matchingTeams.slice(1).map((t: any) => t.id);
+
+          for (const dupId of duplicateIds) {
+            // 選手参照先を統合
+            await service.run('UPDATE players SET team_id = ? WHERE team_id = ?', [primary.id, dupId]);
+            // 試合参照先を統合
+            await service.run('UPDATE games SET home_team_id = ? WHERE home_team_id = ?', [primary.id, dupId]);
+            await service.run('UPDATE games SET away_team_id = ? WHERE away_team_id = ?', [primary.id, dupId]);
+            await service.run('UPDATE game_rosters SET team_id = ? WHERE team_id = ?', [primary.id, dupId]);
+            await service.run('UPDATE stat_events SET team_id = ? WHERE team_id = ?', [primary.id, dupId]);
+            // 設定のマイチームIDが dupId だった場合更新
+            await service.run('UPDATE app_settings SET value = ? WHERE key = ? AND value = ?', [primary.id, 'my_team_id', dupId]);
+            // 重複チームを削除
+            await service.run('DELETE FROM teams WHERE id = ?', [dupId]);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to merge duplicate teams in migration v6:', err);
+      }
+    },
+  },
 ];
 
 /**

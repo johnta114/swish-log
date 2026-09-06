@@ -5,7 +5,7 @@ export const DB_VERSION = 1;
  * 現在のアプリが要求する最新スキーマバージョン
  * スキーマ変更を行うたびにインクリメントし、migrations.ts にマイグレーションを追加すること
  */
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 export const CREATE_TABLES_SQL = `
 -- スキーママイグレーション履歴テーブル（アップデート時のデータ保護用）
@@ -58,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_pnh_player_id ON player_number_histories(player_i
 CREATE TABLE IF NOT EXISTS games (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,
+  season_year INTEGER DEFAULT NULL,
   tournament_name TEXT,
   home_team_id TEXT NOT NULL,
   away_team_id TEXT NOT NULL,
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS games (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_games_date ON games(date DESC);
+CREATE INDEX IF NOT EXISTS idx_games_season_year ON games(season_year DESC);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
 CREATE INDEX IF NOT EXISTS idx_games_teams ON games(home_team_id, away_team_id);
 
@@ -82,6 +84,7 @@ CREATE TABLE IF NOT EXISTS game_rosters (
   player_id TEXT NOT NULL,
   team_id TEXT NOT NULL,
   roster_number INTEGER NOT NULL,
+  roster_sub_number INTEGER DEFAULT NULL,
   roster_name TEXT NOT NULL,
   is_on_court INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,

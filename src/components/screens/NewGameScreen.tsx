@@ -30,6 +30,9 @@ export const NewGameScreen: React.FC = () => {
   const [date, setDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
+  const [seasonYear, setSeasonYear] = useState<number>(() => {
+    return parseInt(new Date().toISOString().split('T')[0].substring(0, 4), 10) || new Date().getFullYear();
+  });
   const [tournamentName, setTournamentName] = useState<string>('');
   const [venue, setVenue] = useState<string>('');
   const [venueUrl, setVenueUrl] = useState<string>('');
@@ -149,13 +152,23 @@ export const NewGameScreen: React.FC = () => {
   const homeTeam = teams.find((t) => t.id === homeTeamId);
   const awayTeam = teams.find((t) => t.id === awayTeamId);
 
-  // チーム選択用（マイチームを先頭に配置）
+  // チーム選択用（マイチームを先頭に配置、同名チームは重複排除）
   const sortedTeamsForSelect: Team[] = useMemo(() => {
-    return [...teams].sort((a, b) => {
-      if (a.id === myTeamId) return -1;
-      if (b.id === myTeamId) return 1;
-      return 0;
+    const seen = new Set<string>();
+    const uniqueTeams: Team[] = [];
+    const myT = teams.find((t) => t.id === myTeamId);
+    if (myT) {
+      seen.add(myT.name.trim().toLowerCase());
+      uniqueTeams.push(myT);
+    }
+    teams.forEach((t) => {
+      const key = t.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueTeams.push(t);
+      }
     });
+    return uniqueTeams;
   }, [teams, myTeamId]);
 
   const homePlayers = players
@@ -228,6 +241,7 @@ export const NewGameScreen: React.FC = () => {
 
     const newGame = createGame({
       date,
+      seasonYear,
       tournamentName: tournamentName.trim() || undefined,
       venue: venue.trim() || undefined,
       venueUrl: venueUrl.trim() || undefined,
@@ -324,9 +338,57 @@ export const NewGameScreen: React.FC = () => {
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value);
+                const y = parseInt(e.target.value.substring(0, 4), 10);
+                if (y && !isNaN(y)) {
+                  setSeasonYear(y);
+                }
+              }}
               className="w-full h-11 bg-slate-900 border border-slate-700 rounded-xl px-3.5 text-sm text-white focus:outline-none focus:border-orange-500 font-medium"
             />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                <span>活動年度（シーズン）</span>
+              </label>
+              <span className="text-[10px] text-slate-400">通算スタッツや年度別集計に利用</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  min={2000}
+                  max={2100}
+                  value={seasonYear}
+                  onChange={(e) => setSeasonYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
+                  className="w-full h-11 bg-slate-900 border border-slate-700 rounded-xl px-3.5 text-sm text-white font-bold focus:outline-none focus:border-blue-500"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">年度</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                {[-1, 0, 1].map((offset) => {
+                  const y = new Date().getFullYear() + offset;
+                  return (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => setSeasonYear(y)}
+                      className={`text-xs px-2.5 h-11 rounded-xl border transition font-medium ${
+                        seasonYear === y
+                          ? 'bg-blue-600 text-white border-blue-500 font-bold shadow-sm'
+                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-600'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div>

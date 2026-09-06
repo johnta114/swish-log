@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import type { Team } from '../../types';
 import { calculateGameStats } from '../../utils/stats';
 import { ImportGameModal } from '../common/ImportGameModal';
 import {
@@ -30,6 +31,7 @@ export const HomeScreen: React.FC = () => {
   // 検索・絞り込みステート
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedSeasonYear, setSelectedSeasonYear] = useState<string>('all');
   const [filterMode, setFilterMode] = useState<'all' | 'my_team'>('all');
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all');
 
@@ -38,13 +40,33 @@ export const HomeScreen: React.FC = () => {
   const activeGames = games.filter((g) => g.status === 'in_progress');
   const finishedGames = games.filter((g) => g.status === 'finished');
 
-  // チーム選択用（マイチームを先頭に配置）
-  const sortedTeamsForSelect = useMemo(() => {
-    return [...teams].sort((a, b) => {
-      if (a.id === myTeamId) return -1;
-      if (b.id === myTeamId) return 1;
-      return 0;
+  // 登録済みの全試合から存在する活動年度一覧を取得（降順）
+  const availableYears = useMemo(() => {
+    const set = new Set<number>();
+    games.forEach((g) => {
+      const yr = g.seasonYear || parseInt(g.date.substring(0, 4), 10);
+      if (yr) set.add(yr);
     });
+    return Array.from(set).sort((a, b) => b - a);
+  }, [games]);
+
+  // チーム選択用（マイチームを先頭に配置、同名重複を排除）
+  const sortedTeamsForSelect = useMemo(() => {
+    const seen = new Set<string>();
+    const uniqueTeams: Team[] = [];
+    const myT = teams.find((t) => t.id === myTeamId);
+    if (myT) {
+      seen.add(myT.name.trim().toLowerCase());
+      uniqueTeams.push(myT);
+    }
+    teams.forEach((t) => {
+      const key = t.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueTeams.push(t);
+      }
+    });
+    return uniqueTeams;
   }, [teams, myTeamId]);
 
   // フィルター済み試合履歴
@@ -53,6 +75,14 @@ export const HomeScreen: React.FC = () => {
       const homeTeam = getTeam(game.homeTeamId);
       const awayTeam = getTeam(game.awayTeamId);
       if (!homeTeam || !awayTeam) return false;
+
+      // 0. 活動年度フィルター
+      if (selectedSeasonYear !== 'all') {
+        const gameYear = game.seasonYear || parseInt(game.date.substring(0, 4), 10);
+        if (gameYear !== Number(selectedSeasonYear)) {
+          return false;
+        }
+      }
 
       // 1. カレンダー日付フィルター
       if (selectedDate && game.date !== selectedDate) {
@@ -92,17 +122,19 @@ export const HomeScreen: React.FC = () => {
 
       return true;
     });
-  }, [finishedGames, selectedDate, filterMode, selectedTeamFilter, searchQuery, myTeamId, teams]);
+  }, [finishedGames, selectedSeasonYear, selectedDate, filterMode, selectedTeamFilter, searchQuery, myTeamId, teams]);
 
   const hasFilterActive =
     searchQuery.trim() !== '' ||
     selectedDate !== '' ||
+    selectedSeasonYear !== 'all' ||
     filterMode !== 'all' ||
     selectedTeamFilter !== 'all';
 
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedDate('');
+    setSelectedSeasonYear('all');
     setFilterMode('all');
     setSelectedTeamFilter('all');
   };
@@ -158,6 +190,9 @@ export const HomeScreen: React.FC = () => {
                   {/* ヘッダー情報 */}
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <div className="flex items-center space-x-1.5 min-w-0">
+                      <span className="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[10px] font-bold shrink-0">
+                        {game.seasonYear || game.date.substring(0, 4)}年度
+                      </span>
                       <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span className="truncate max-w-[130px]">
                         {game.tournamentName || '練習試合'}
@@ -320,8 +355,8 @@ export const HomeScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* 下段: クイックフィルタータブ（すべて / マイチーム / チーム絞り込み） */}
-          <div className="flex items-center space-x-1.5 pt-0.5">
+          {/* 下段: クイックフィルタータブ（すべて / マイチーム / 年度選択 / チーム絞り込み） */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             <button
               onClick={() => {
                 setFilterMode('all');
@@ -353,8 +388,26 @@ export const HomeScreen: React.FC = () => {
               </button>
             )}
 
+            {/* 活動年度フィルター */}
+            {availableYears.length > 0 && (
+              <div className="w-24 shrink-0">
+                <select
+                  value={selectedSeasonYear}
+                  onChange={(e) => setSelectedSeasonYear(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-orange-500 font-medium"
+                >
+                  <option value="all">全年度</option>
+                  {availableYears.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}年度
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* チーム個別ドロップダウン（画面幅に合わせて自動伸縮・はみ出さない） */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[110px]">
               <select
                 value={selectedTeamFilter}
                 onChange={(e) => {
@@ -417,6 +470,9 @@ export const HomeScreen: React.FC = () => {
                 >
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <div className="flex items-center space-x-1.5 truncate min-w-0">
+                      <span className="px-1.5 py-0.5 rounded bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[10px] font-bold shrink-0">
+                        {game.seasonYear || game.date.substring(0, 4)}年度
+                      </span>
                       <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       <span className="font-mono">{game.date}</span>
                       {game.tournamentName && (

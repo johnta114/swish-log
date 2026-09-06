@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { calculateTeamCareerStats } from '../../utils/careerStats';
 import { exportTeamCareerStatsCSV } from '../../utils/csvExport';
 import { CourtCanvas } from '../common/CourtCanvas';
-import type { PlayerCareerStats } from '../../types';
+import type { PlayerCareerStats, Team } from '../../types';
 import {
   Trophy,
   Users,
@@ -32,16 +32,75 @@ export const TotalStatsScreen: React.FC = () => {
     return teams.length > 0 ? teams[0].id : '';
   });
 
+  // シーズン（活動年度）フィルターステート ('all' または '2026' など)
+  const [selectedSeason, setSelectedSeason] = useState<string>('all');
+
   // ソート項目
   const [sortKey, setSortKey] = useState<SortKey>('points');
 
   const currentTeam = teams.find((t) => t.id === selectedTeamId);
 
-  // チーム全体の通算スタッツ計算
+  // チーム選択用（マイチームを先頭に配置、同名チームは重複排除）
+  const sortedTeams = useMemo(() => {
+    const seen = new Set<string>();
+    const uniqueTeams: Team[] = [];
+    const myT = teams.find((t) => t.id === myTeamId);
+    if (myT) {
+      seen.add(myT.name.trim().toLowerCase());
+      uniqueTeams.push(myT);
+    }
+    teams.forEach((t) => {
+      const key = t.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueTeams.push(t);
+      }
+    });
+    return uniqueTeams;
+  }, [teams, myTeamId]);
+
+  // 現在のチームに関連する全試合から、存在する活動年度一覧を取得（降順）
+  const availableSeasons = useMemo(() => {
+    if (!currentTeam) return [];
+    const relatedTeamIds = new Set(
+      teams
+        .filter((t) => t.name.trim().toLowerCase() === currentTeam.name.trim().toLowerCase())
+        .map((t) => t.id)
+    );
+    const years = new Set<number>();
+    games.forEach((g) => {
+      if (relatedTeamIds.has(g.homeTeamId) || relatedTeamIds.has(g.awayTeamId)) {
+        const yr = g.seasonYear || parseInt(g.date.substring(0, 4), 10);
+        if (yr) years.add(yr);
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [currentTeam, teams, games]);
+
+  // シーズン条件に応じた対象試合群
+  const targetGames = useMemo(() => {
+    if (!currentTeam) return [];
+    const relatedTeamIds = new Set(
+      teams
+        .filter((t) => t.name.trim().toLowerCase() === currentTeam.name.trim().toLowerCase())
+        .map((t) => t.id)
+    );
+    return games.filter((g) => {
+      const isRelated = relatedTeamIds.has(g.homeTeamId) || relatedTeamIds.has(g.awayTeamId);
+      if (!isRelated) return false;
+      if (selectedSeason !== 'all') {
+        const yr = g.seasonYear || parseInt(g.date.substring(0, 4), 10);
+        return yr === Number(selectedSeason);
+      }
+      return true;
+    });
+  }, [currentTeam, teams, games, selectedSeason]);
+
+  // チーム全体のスタッツ計算（対象期間の試合群を渡す）
   const careerStats = useMemo(() => {
     if (!currentTeam) return null;
-    return calculateTeamCareerStats(currentTeam, games, players, teams);
-  }, [currentTeam, games, players, teams]);
+    return calculateTeamCareerStats(currentTeam, targetGames, players, teams);
+  }, [currentTeam, targetGames, players, teams]);
 
   // 詳細モーダルで表示する選手
   const [selectedPlayerStats, setSelectedPlayerStats] = useState<PlayerCareerStats | null>(() => {
@@ -82,15 +141,6 @@ export const TotalStatsScreen: React.FC = () => {
       </div>
     );
   }
-
-  // チーム選択用（マイチームを先頭に配置）
-  const sortedTeams = useMemo(() => {
-    return [...teams].sort((a, b) => {
-      if (a.id === myTeamId) return -1;
-      if (b.id === myTeamId) return 1;
-      return 0;
-    });
-  }, [teams, myTeamId]);
 
   return (
     <div className="space-y-4 pb-20">
@@ -134,6 +184,33 @@ export const TotalStatsScreen: React.FC = () => {
         </button>
       </div>
 
+      {/* 活動年度（シーズン）切り替えピル */}
+      <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+        <button
+          onClick={() => setSelectedSeason('all')}
+          className={`shrink-0 px-3 py-1 rounded-xl text-xs font-bold transition border ${
+            selectedSeason === 'all'
+              ? 'bg-orange-600 border-orange-500 text-white shadow-sm'
+              : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          全シーズン通算
+        </button>
+        {availableSeasons.map((yr) => (
+          <button
+            key={yr}
+            onClick={() => setSelectedSeason(String(yr))}
+            className={`shrink-0 px-3 py-1 rounded-xl text-xs font-bold transition border ${
+              selectedSeason === String(yr)
+                ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
+                : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {yr}年度
+          </button>
+        ))}
+      </div>
+
       {/* チーム通算サマリーカード */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 border border-slate-700/80 rounded-2xl p-3.5 shadow-lg space-y-3 relative overflow-hidden">
         <div className="flex items-center justify-between">
@@ -148,7 +225,7 @@ export const TotalStatsScreen: React.FC = () => {
             </span>
           </div>
           <span className="text-[11px] text-slate-400 font-semibold">
-            通算 {careerStats.totalGames} 試合
+            {selectedSeason === 'all' ? '通算' : `${selectedSeason}年度`} {careerStats.totalGames} 試合
           </span>
         </div>
 
@@ -249,6 +326,9 @@ export const TotalStatsScreen: React.FC = () => {
         <div className="space-y-2">
           {sortedPlayers.map((p, index) => {
             const hasHistory = p.numberHistory && p.numberHistory.length > 0;
+            const mainNumber = p.periodNumber ?? p.currentNumber;
+            const subNum = p.periodSubNumber ?? p.subNumber;
+            const isDifferentFromCurrent = p.periodNumber != null && p.periodNumber !== p.currentNumber;
 
             return (
               <div
@@ -274,14 +354,14 @@ export const TotalStatsScreen: React.FC = () => {
                       {index + 1}
                     </span>
 
-                    {/* 背番号バッジ */}
+                    {/* 背番号バッジ（指定年度の当時の背番号を優先表示） */}
                     <div className="flex flex-col items-center shrink-0">
                       <span className="font-mono font-black text-sm text-white bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-lg">
-                        #{p.currentNumber}
+                        #{mainNumber}
                       </span>
-                      {p.subNumber != null && (
+                      {subNum != null && (
                         <span className="text-[8px] font-mono text-slate-400 mt-0.5">
-                          Rev:#{p.subNumber}
+                          Rev:#{subNum}
                         </span>
                       )}
                     </div>
@@ -291,14 +371,20 @@ export const TotalStatsScreen: React.FC = () => {
                         <span className="font-black text-sm text-white truncate">{p.name}</span>
                       </div>
 
-                      {/* 過去の背番号履歴 */}
-                      {hasHistory && (
-                        <div className="flex items-center space-x-1 text-[10px] text-slate-400 mt-0.5">
-                          <History className="w-2.5 h-2.5 text-slate-500" />
-                          <span>
-                            旧: {p.numberHistory!.map((h) => `#${h.number}`).join(', ')}
-                          </span>
+                      {/* 背番号の補足表示 */}
+                      {isDifferentFromCurrent ? (
+                        <div className="flex items-center space-x-1 text-[10px] text-amber-400 mt-0.5 font-medium">
+                          <span>現行背番号: #{p.currentNumber}</span>
                         </div>
+                      ) : (
+                        hasHistory && (
+                          <div className="flex items-center space-x-1 text-[10px] text-slate-400 mt-0.5">
+                            <History className="w-2.5 h-2.5 text-slate-500" />
+                            <span>
+                              旧: {p.numberHistory!.map((h) => `#${h.number}`).join(', ')}
+                            </span>
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
@@ -371,11 +457,11 @@ export const TotalStatsScreen: React.FC = () => {
               <div className="flex items-center space-x-2.5">
                 <div className="flex flex-col items-center shrink-0">
                   <span className="font-mono font-black text-base text-white bg-orange-600 px-2.5 py-1 rounded-xl shadow">
-                    #{selectedPlayerStats.currentNumber}
+                    #{selectedPlayerStats.periodNumber ?? selectedPlayerStats.currentNumber}
                   </span>
-                  {selectedPlayerStats.subNumber != null && (
+                  {(selectedPlayerStats.periodSubNumber ?? selectedPlayerStats.subNumber) != null && (
                     <span className="text-[9px] font-mono text-slate-300 mt-0.5">
-                      Rev:#{selectedPlayerStats.subNumber}
+                      Rev:#{selectedPlayerStats.periodSubNumber ?? selectedPlayerStats.subNumber}
                     </span>
                   )}
                 </div>
@@ -478,6 +564,7 @@ export const TotalStatsScreen: React.FC = () => {
                             <span className="font-bold text-white">vs {log.opponentTeamName}</span>
                             <span className="text-[9px] bg-slate-800 text-slate-400 font-mono px-1 py-0.2 rounded">
                               当時の背番号: #{log.playerNumberInGame}
+                              {log.subNumberInGame != null ? ` (Rev:#${log.subNumberInGame})` : ''}
                             </span>
                           </div>
                           {log.tournamentName && (
